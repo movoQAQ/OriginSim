@@ -48,7 +48,7 @@
             ivox_grid_resolution: 2.0
             gravity: [0.0, 0.0, -9.810]                     # preknown gravity, use when imu_en is False or start from a non-stationary state
             gravity_init: [0.0, 0.0, -9.810]                # preknown gravity in the initial IMU frame for unstationary start or in the initial LiDAR frame for using without IMU
-            extrinsic_T: [ 0.0, 0.0, 0.28]
+            extrinsic_T: [ 0.0, 0.0, 0.03]
             extrinsic_R: [ 1.0, 0.0, 0.0,
                            0.0, 1.0, 0.0,
                            0.0, 0.0, 1.0 ]

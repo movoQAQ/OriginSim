@@ -6,19 +6,19 @@
 namespace nav_executor
 {
 std::optional<double> findPathObstacle(const nav_msgs::msg::Path & path,
-  const map_server::Costmap2D & grid,
+  const map_server::MapView & grid,
   double robot_radius,
   double progress,
   double end)
 {
-  if (path.poses.empty() || grid.getSizeInCellsX() == 0 || !std::isfinite(robot_radius) ||
+  if (path.poses.empty() || grid.geometry().width == 0 || !std::isfinite(robot_radius) ||
       robot_radius <= 0.0)
   {
     return 0.0;
   }
   // 增加栅格半对角线余量以覆盖整个障碍栅格
-  const double radius = robot_radius + grid.getResolution() * std::sqrt(0.5);
-  const double resolution = grid.getResolution();
+  const double radius = robot_radius + grid.geometry().resolution * std::sqrt(0.5);
+  const double resolution = grid.geometry().resolution;
   double blocked_ahead = -1.0;
   double arc = 0.0;
   auto previous = path.poses.front().pose.position;
@@ -38,28 +38,28 @@ std::optional<double> findPathObstacle(const nav_msgs::msg::Path & path,
         return std::floor((value - origin) / resolution);
       };
       const int x0 =
-        static_cast<int>(std::clamp(lower(std::min(ax, bx) - radius, grid.getOriginX(), resolution),
+        static_cast<int>(std::clamp(lower(std::min(ax, bx) - radius, grid.geometry().origin_x, resolution),
           0.0,
-          static_cast<double>(grid.getSizeInCellsX())));
+          static_cast<double>(grid.geometry().width)));
       const int y0 =
-        static_cast<int>(std::clamp(lower(std::min(ay, by) - radius, grid.getOriginY(), resolution),
+        static_cast<int>(std::clamp(lower(std::min(ay, by) - radius, grid.geometry().origin_y, resolution),
           0.0,
-          static_cast<double>(grid.getSizeInCellsY())));
+          static_cast<double>(grid.geometry().height)));
       const int x1 =
-        static_cast<int>(std::clamp(lower(std::max(ax, bx) + radius, grid.getOriginX(), resolution),
+        static_cast<int>(std::clamp(lower(std::max(ax, bx) + radius, grid.geometry().origin_x, resolution),
           -1.0,
-          static_cast<double>(grid.getSizeInCellsX()) - 1));
+          static_cast<double>(grid.geometry().width) - 1));
       const int y1 =
-        static_cast<int>(std::clamp(lower(std::max(ay, by) + radius, grid.getOriginY(), resolution),
+        static_cast<int>(std::clamp(lower(std::max(ay, by) + radius, grid.geometry().origin_y, resolution),
           -1.0,
-          static_cast<double>(grid.getSizeInCellsY()) - 1));
+          static_cast<double>(grid.geometry().height) - 1));
       for (int y = y0; y <= y1 && blocked_ahead < 0.0; ++y) {
         for (int x = x0; x <= x1; ++x) {
-          if (!grid.rawObstacle(x, y)) {
+          if (!grid.latestOccupied(x, y)) {
             continue;
           }
-          const double wx = grid.getOriginX() + (x + 0.5) * resolution;
-          const double wy = grid.getOriginY() + (y + 0.5) * resolution;
+          const double wx = grid.geometry().origin_x + (x + 0.5) * resolution;
+          const double wy = grid.geometry().origin_y + (y + 0.5) * resolution;
           const double along = std::clamp((wx - ax) * ux + (wy - ay) * uy, 0.0, end_s - begin_s);
           if (std::hypot(wx - ax - along * ux, wy - ay - along * uy) <= radius) {
             blocked_ahead = begin_s - progress + along;
@@ -81,9 +81,9 @@ std::optional<double> findPathObstacle(const nav_msgs::msg::Path & path,
 }
 
 bool pathIsClear(
-  const nav_msgs::msg::Path & path, const map_server::Costmap2D & grid, double radius)
+  const nav_msgs::msg::Path & path, const map_server::MapView & grid, double radius)
 {
-  if (path.poses.empty() || grid.getSizeInCellsX() == 0 || !std::isfinite(radius) || radius <= 0.0)
+  if (path.poses.empty() || grid.geometry().width == 0 || !std::isfinite(radius) || radius <= 0.0)
   {
     return false;
   }
@@ -91,7 +91,7 @@ bool pathIsClear(
     const auto & p = waypoint.pose.position;
     unsigned int x;
     unsigned int y;
-    if (!std::isfinite(p.x) || !std::isfinite(p.y) || !grid.worldToMap(p.x, p.y, x, y)) {
+    if (!std::isfinite(p.x) || !std::isfinite(p.y) || !grid.worldToCell(p.x, p.y, x, y)) {
       return false;
     }
   }

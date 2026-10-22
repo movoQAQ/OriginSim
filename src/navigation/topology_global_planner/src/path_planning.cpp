@@ -32,7 +32,7 @@ nav_msgs::msg::Path TopologyGlobalPlanner::makeInnerPlannerPath(
   if (!grid_planner_) {
     throw std::runtime_error("GridPlanner is not initialized");
   }
-  auto path = grid_planner_->plan(start, goal, goal_policy, cancel_checker_);
+  auto path = grid_planner_->plan(start, goal, *active_view_, goal_policy, cancel_checker_);
 
   if (!path.poses.empty()) {
     if (path.header.frame_id.empty()) {

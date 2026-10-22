@@ -4,7 +4,7 @@
 #include <cmath>
 #include <stdexcept>
 
-#include "map_server/costmap_2d.hpp"
+#include "map_server/map_view.hpp"
 #include "minco_controller/mpc_types.hpp"
 
 namespace minco_controller
@@ -14,23 +14,23 @@ namespace minco_controller
 class CostmapCost
 {
 public:
-  CostmapCost(const map_server::Costmap2D & grid, double sigma,
+  CostmapCost(const map_server::MapView & grid, double sigma,
     double collision_radius = 0.0, double trust_region = 0.15)
-  : grid_(grid), sigma_(std::max(sigma, grid_.getResolution())),
+  : grid_(grid), sigma_(std::max(sigma, grid_.geometry().resolution)),
     collision_radius_(collision_radius), trust_region_(trust_region)
   {
     if (!std::isfinite(collision_radius) || collision_radius < 0.0 ||
       !std::isfinite(trust_region) || trust_region <= 0.0 ||
-      !std::isfinite(sigma) || sigma <= 0.0 || grid_.getSizeInCellsX() < 3 ||
-      grid_.getSizeInCellsY() < 3 || grid_.getResolution() <= 0.0)
+      !std::isfinite(sigma) || sigma <= 0.0 || grid_.geometry().width < 3 ||
+      grid_.geometry().height < 3 || grid_.geometry().resolution <= 0.0)
     {throw std::invalid_argument("MPC requires a valid cost grid and smoothing distance");}
   }
 
   bool sample(const Eigen::Vector2d & position, CostLinearization & result) const
   {
     unsigned int mx, my;
-    if (!grid_.worldToMap(position.x(), position.y(), mx, my)) {return false;}
-    const double resolution = grid_.getResolution();
+    if (!grid_.worldToCell(position.x(), position.y(), mx, my)) {return false;}
+    const double resolution = grid_.geometry().resolution;
     const int cells = static_cast<int>(std::ceil(3.0 * sigma_ / resolution));
     double weights = 0.0, weighted_cost = 0.0;
     Eigen::Vector2d weight_gradient = Eigen::Vector2d::Zero();
@@ -38,14 +38,14 @@ public:
     for (int dy = -cells; dy <= cells; ++dy) {
       for (int dx = -cells; dx <= cells; ++dx) {
         const int ix = static_cast<int>(mx) + dx, iy = static_cast<int>(my) + dy;
-        const Eigen::Vector2d center(grid_.getOriginX() + (ix + 0.5) * resolution,
-          grid_.getOriginY() + (iy + 0.5) * resolution);
+        const Eigen::Vector2d center(grid_.geometry().origin_x + (ix + 0.5) * resolution,
+          grid_.geometry().origin_y + (iy + 0.5) * resolution);
         const Eigen::Vector2d delta = center - position;
         const double weight = std::exp(-0.5 * delta.squaredNorm() / (sigma_ * sigma_));
         // Unknown cells and the exterior are high cost, never free space.
-        const double cost = ix < 0 || iy < 0 || ix >= static_cast<int>(grid_.getSizeInCellsX()) ||
-          iy >= static_cast<int>(grid_.getSizeInCellsY()) ? 1.0 :
-          (std::isfinite(grid_.getCost(ix, iy)) ? 1.0 - 1.0 / grid_.getCost(ix, iy) : 1.0);
+        const double cost = ix < 0 || iy < 0 || ix >= static_cast<int>(grid_.geometry().width) ||
+          iy >= static_cast<int>(grid_.geometry().height) ? 1.0 :
+          (std::isfinite(grid_.cost(ix, iy)) ? 1.0 - 1.0 / grid_.cost(ix, iy) : 1.0);
         const Eigen::Vector2d gradient = weight * delta / (sigma_ * sigma_);
         weights += weight;
         weighted_cost += weight * cost;
@@ -70,22 +70,22 @@ public:
           result.safety_planes.push_back({normal, offset});
         };
       const double radius = collision_radius_ + 0.001;
-      add_plane(Eigen::Vector2d(1, 0), grid_.getOriginX() + radius);
+      add_plane(Eigen::Vector2d(1, 0), grid_.geometry().origin_x + radius);
       add_plane(Eigen::Vector2d(-1, 0),
-        -(grid_.getOriginX() + grid_.getSizeInCellsX() * resolution - radius));
-      add_plane(Eigen::Vector2d(0, 1), grid_.getOriginY() + radius);
+        -(grid_.geometry().origin_x + grid_.geometry().width * resolution - radius));
+      add_plane(Eigen::Vector2d(0, 1), grid_.geometry().origin_y + radius);
       add_plane(Eigen::Vector2d(0, -1),
-        -(grid_.getOriginY() + grid_.getSizeInCellsY() * resolution - radius));
+        -(grid_.geometry().origin_y + grid_.geometry().height * resolution - radius));
       const double reach = radius + std::sqrt(2.0) * trust_region_ + resolution;
       const int extent = static_cast<int>(std::ceil(reach / resolution)) + 1;
       for (int dy = -extent; dy <= extent; ++dy) {
         for (int dx = -extent; dx <= extent; ++dx) {
           const int ix = static_cast<int>(mx) + dx, iy = static_cast<int>(my) + dy;
-          if (ix < 0 || iy < 0 || ix >= static_cast<int>(grid_.getSizeInCellsX()) ||
-            iy >= static_cast<int>(grid_.getSizeInCellsY()) ||
-            !grid_.rawObstacle(ix, iy)) {continue;}
-          const Eigen::Vector2d lower(grid_.getOriginX() + ix * resolution,
-            grid_.getOriginY() + iy * resolution);
+          if (ix < 0 || iy < 0 || ix >= static_cast<int>(grid_.geometry().width) ||
+            iy >= static_cast<int>(grid_.geometry().height) ||
+            !grid_.latestOccupied(ix, iy)) {continue;}
+          const Eigen::Vector2d lower(grid_.geometry().origin_x + ix * resolution,
+            grid_.geometry().origin_y + iy * resolution);
           const Eigen::Vector2d nearest = position.cwiseMax(lower).cwiseMin(
             lower + Eigen::Vector2d::Constant(resolution));
           const Eigen::Vector2d delta = position - nearest;
@@ -103,7 +103,7 @@ public:
   }
 
 private:
-  map_server::Costmap2D grid_;
+  const map_server::MapView grid_;
   double sigma_;
   double collision_radius_, trust_region_;
 };

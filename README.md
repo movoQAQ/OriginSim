@@ -1,9 +1,5 @@
-# OriginSim nav — MapServer refactor
+# OriginSim nav — hxy 集成
 
-基线与迁移：[迁移记录](docs/map_server_migration.md)。
+[接口、资源与运行说明](docs/map_server_usage.md) · [迁移记录](docs/map_server_migration.md) · [验证记录](docs/map_server_validation.md)
 
-构建、资源、接口与时序：[使用说明](docs/map_server_usage.md)。
-
-实际验证结果、性能与限制：[验收报告](docs/map_server_validation.md)。
-
-topology_global_planner 已作为普通 ROS 2 功能包直接纳入主仓库，不再使用 Git 子模块；普通 clone 即可获得完整导航源码。实车运行前仍需提供匹配的 PCD、2026 拓扑、区域图及真实雷达上游，具体缺口见验收报告。
+地图统一使用 MapClient 和只读 MapView；topology_global_planner 是普通 ROS 2 功能包。默认使用 hxy 的 rmuc_2027 PCD/PGM，Depth 未启用。当前地图尚无已验证匹配的区域/拓扑配置，拓扑约束暂时关闭。

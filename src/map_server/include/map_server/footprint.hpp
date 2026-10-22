@@ -1,11 +1,12 @@
 #pragma once
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 #include "geometry_msgs/msg/point.hpp"
-#include "map_server/costmap_2d.hpp"
+
 
 namespace map_server
 {
@@ -44,44 +45,4 @@ inline bool pointInPolygon(double x, double y, const Footprint & polygon)
   }
   return inside;
 }
-// Checks polygon edges with Bresenham, preserving Nav2 collision return values.
-template<typename GridPointer>
-class FootprintCollisionChecker
-{
-public:
-  explicit FootprintCollisionChecker(GridPointer map = nullptr) : map_(map) {}
-  void setCostmap(GridPointer map) {map_ = map;}
-  GridPointer getCostmap() const {return map_;}
-  bool worldToMap(double x, double y, unsigned int & mx, unsigned int & my) const
-  {return map_ && map_->worldToMap(x, y, mx, my);}
-  double pointCost(int x, int y) const {return map_->rawObstacle(x, y) ? INFINITY : 0.0;}
-  double footprintCostAtPose(double x, double y, double yaw, const Footprint & polygon) const
-  {
-    if (!map_ || polygon.size() < 3) {return INFINITY;}
-    const auto world = transformFootprint(x, y, yaw, polygon);
-    double cost = 0.0;
-    for (size_t i = 0; i < world.size(); ++i) {
-      const auto & a = world[i]; const auto & b = world[(i + 1) % world.size()];
-      unsigned int ax, ay, bx, by;
-      if (!map_->worldToMap(a.x, a.y, ax, ay) || !map_->worldToMap(b.x, b.y, bx, by))
-      {return INFINITY;}
-      int px = ax, py = ay, tx = bx, ty = by;
-      const int dx = std::abs(tx - px), sx = px < tx ? 1 : -1;
-      const int dy = -std::abs(ty - py), sy = py < ty ? 1 : -1;
-      int error = dx + dy;
-      while (true) {
-        const double value = pointCost(px, py);
-        if (!std::isfinite(value)) {return value;}
-        cost = std::max(cost, static_cast<double>(value));
-        if (px == tx && py == ty) {break;}
-        const int twice = 2 * error;
-        if (twice >= dy) {error += dy; px += sx;}
-        if (twice <= dx) {error += dx; py += sy;}
-      }
-    }
-    return cost;
-  }
-private:
-  GridPointer map_{nullptr};
-};
 }  // namespace map_server

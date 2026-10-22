@@ -125,7 +125,7 @@ Smoother::Smoother(Config config) : config_(config)
   }
 }
 
-Result Smoother::smooth(const Plan & original, const map_server::Costmap2D & map,
+Result Smoother::smooth(const Plan & original, const map_server::MapView & map,
   double body_radius, Validate topology_valid, Cancel cancelled) const
 {
   Result fallback{original, false, "disabled"};
@@ -138,7 +138,7 @@ Result Smoother::smooth(const Plan & original, const map_server::Costmap2D & map
   try {
     if (!std::isfinite(body_radius) || body_radius <= 0 || !topology_valid ||
         original.full_path.poses.size() < 2 || original.segments.empty() ||
-        map.getSizeInCellsX() < 3 || map.getSizeInCellsY() < 3 || interrupted()) {
+        map.geometry().width < 3 || map.geometry().height < 3 || interrupted()) {
       return fallback;
     }
     for (const auto & segment : original.segments) {
@@ -149,7 +149,7 @@ Result Smoother::smooth(const Plan & original, const map_server::Costmap2D & map
     }
     // CollisionMask already includes the circular body, safety and discretization margin.
     // YAstar and SFC read the same retained DerivedMaps; never inflate a second time.
-    const auto snapshot = map.getDerivedMaps();
+    const auto snapshot = map.derivedMaps();
     if (!snapshot) return fallback;
     const double resolution = snapshot->geometry.resolution;
     tdt::MinimumSnap::Map binary(snapshot->geometry.height, snapshot->geometry.width);

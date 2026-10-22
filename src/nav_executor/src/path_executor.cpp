@@ -71,7 +71,7 @@ class PathExecutor::Impl
 {
 public:
   Impl(const rclcpp::Node::SharedPtr & node,
-    std::shared_ptr<map_server::CostmapClient> costmap,
+    std::shared_ptr<map_server::MapClient> costmap,
     std::function<bool()> global_ready,
     Failure failure,
     Success success,
@@ -388,13 +388,15 @@ public:
         }
         return;
       }
-      auto * grid = costmap_->getCostmap();
+      const auto grid = costmap_->view();
+      if (!costmap_->isCurrent(*grid)) {
+        throw std::runtime_error("Control MapView is not current");
+      }
       {
-        std::unique_lock<map_server::Costmap2D::mutex_t> lock(*grid->getMutex());
         unsigned int mx;
         unsigned int my;
-        if (grid->getSizeInCellsX() < 3 || grid->getSizeInCellsY() < 3 ||
-            !grid->worldToMap(pose.pose.position.x, pose.pose.position.y, mx, my))
+        if (grid->geometry().width < 3 || grid->geometry().height < 3 ||
+            !grid->worldToCell(pose.pose.position.x, pose.pose.position.y, mx, my))
         {
           throw std::runtime_error("Robot outside usable local costmap");
         }
@@ -435,7 +437,7 @@ public:
   }
 
   rclcpp::Node::WeakPtr node_;
-  std::shared_ptr<map_server::CostmapClient> costmap_;
+  std::shared_ptr<map_server::MapClient> costmap_;
   std::function<bool()> global_ready_;
   Failure failure_;
   Success success_;
@@ -467,7 +469,7 @@ public:
 };
 
 PathExecutor::PathExecutor(const rclcpp::Node::SharedPtr & node,
-  std::shared_ptr<map_server::CostmapClient> local_costmap,
+  std::shared_ptr<map_server::MapClient> local_costmap,
   std::function<bool()> global_map_ready,
   Failure failure,
   Success success,

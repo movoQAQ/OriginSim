@@ -39,6 +39,7 @@ public:
   RegionId regionAt(const Eigen::Vector2d& map_xy) const;
   std::optional<float> heightAt(const Eigen::Vector2d& map_xy) const;
   std::optional<float> depthAt(const Eigen::Vector2d& map_xy) const;
+  std::shared_ptr<const StaticMap> getStaticMap() const;
   std::shared_ptr<const DerivedMaps> getDerivedMaps() const;
   std::shared_ptr<const DynamicObstacleView> getLatestDynamicObstacles() const;
   DynamicHealth getDynamicHealth() const;

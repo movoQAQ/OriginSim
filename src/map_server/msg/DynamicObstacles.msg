@@ -1,9 +1,8 @@
-# Lightweight current perception; independent of EDT completion.
+# Only current obstacle geometry, emitted when geometry changes. Health is in MapStatus.
 std_msgs/Header header
 uint64 producer_id
+uint64 version
 uint64 input_version
 nav_msgs/MapMetaData cloud_info
 uint8[] cloud_mask
-map_server/RadarTarget[] allies
-map_server/RadarTarget[] enemies
-map_server/DynamicHealth health
+map_server/ObstacleCircle[] circles

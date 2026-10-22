@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "map_server/costmap_2d.hpp"
+#include "map_server/map_view.hpp"
 #include "topology_global_planner/grid/grid_planner.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "nav_msgs/msg/path.hpp"
@@ -62,7 +62,6 @@ public:
 
   void initialize(rclcpp::Node::SharedPtr node,
     std::shared_ptr<tf2_ros::Buffer> tf,
-    map_server::Costmap2D * costmap,
     std::string global_frame,
     std::string robot_base_frame,
     std::string name = "TopoPlanner");
@@ -71,11 +70,12 @@ public:
     const geometry_msgs::msg::PoseStamped & start,
     const geometry_msgs::msg::PoseStamped & goal,
     const std::optional<Segment> & active_connector,
+    std::shared_ptr<const map_server::MapView> view,
     std::function<bool()> cancel_checker = []() {
       return false;
     });
 
-  void setRegionQuery(std::function<map_server::RegionId(const Eigen::Vector2d &)> query) {region_query_=std::move(query);}
+  void useRegionRaster(bool enabled) {use_region_raster_=enabled;}
   // 复用当前拓扑配置复检平滑结果，不重新搜索或改变通道选择。
   bool validateSmoothedPlan(const TopologyPlan & reference, const TopologyPlan & candidate) const;
 
@@ -138,10 +138,10 @@ private:
     double cost{1.0};
   };
 
-  std::function<map_server::RegionId(const Eigen::Vector2d &)> region_query_;
+  bool use_region_raster_{false};
   rclcpp::Node::SharedPtr node_;
   std::shared_ptr<tf2_ros::Buffer> tf_;
-  map_server::Costmap2D * costmap_{nullptr};
+  std::shared_ptr<const map_server::MapView> active_view_;
   rclcpp::Logger logger_{rclcpp::get_logger("TopologyGlobalPlanner")};
   rclcpp::Clock::SharedPtr clock_;
 

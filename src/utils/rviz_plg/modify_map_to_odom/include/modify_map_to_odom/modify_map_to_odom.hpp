@@ -21,6 +21,7 @@ namespace modify_map_to_odom
         double roll;
         double x;
         double y;
+        double z{0.0};
 
         std::shared_ptr<tf2_ros::TransformBroadcaster> broadcaster;
         std::string parent_frame;

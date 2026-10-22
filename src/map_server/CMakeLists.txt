@@ -31,9 +31,10 @@ if(NOT MAP_SERVER_CORE_ONLY)
   rosidl_generate_interfaces(${PROJECT_NAME}
     "msg/RadarTarget.msg" "msg/RadarTargets.msg" "msg/DynamicHealth.msg"
     "msg/DerivedMap.msg" "msg/DynamicObstacles.msg"
+    "msg/StaticMap.msg" "msg/ObstacleCircle.msg" "msg/MapStatus.msg"
     DEPENDENCIES std_msgs nav_msgs geometry_msgs builtin_interfaces)
   rosidl_get_typesupport_target(typesupport_target ${PROJECT_NAME} rosidl_typesupport_cpp)
-  add_library(map_server_ros SHARED src/map_geometry.cpp src/costmap_client.cpp
+  add_library(map_server_ros SHARED src/map_geometry.cpp src/map_client.cpp
     ros/cloud_adapter.cpp ros/radar_adapter.cpp)
   target_compile_features(map_server_ros PUBLIC cxx_std_17)
   target_link_libraries(map_server_ros PUBLIC map_server_core ${typesupport_target})

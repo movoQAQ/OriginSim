@@ -9,8 +9,8 @@ namespace topology_global_planner
 
 std::string TopologyGlobalPlanner::findRegion(double x, double y) const
 {
-  if (region_query_) {
-    const auto id=region_query_({x,y});
+  if (use_region_raster_) {
+    const auto id=(active_view_ ? active_view_->regionAt({x,y}) : map_server::INVALID_REGION);
     if(id==map_server::INVALID_REGION)return "";
     const auto key="R"+std::to_string(id);
     return getRegionById(key)?key:"";
@@ -213,7 +213,7 @@ bool TopologyGlobalPlanner::pathInsideConnectorStrip(const nav_msgs::msg::Path &
     const double t = (px * vx + py * vy) / length_sq;
 
     // 限制沿通道方向的位置和回退量
-    const double cell_slack = std::max(0.05, costmap_->getResolution()) / std::sqrt(length_sq);
+    const double cell_slack = std::max(0.05, active_view_->geometry().resolution) / std::sqrt(length_sq);
     if (t < -cell_slack || t > 1.0 + cell_slack || t + cell_slack < previous_t) {
       return false;
     }

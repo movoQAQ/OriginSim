@@ -1,0 +1,65 @@
+{
+  "source": "real hxy Gazebo rmuc_2027",
+  "passed": true,
+  "checks": [
+    "real cloud, odometry, TF and coherent map channels ready",
+    "Depth empty",
+    "robot starts in traversable map cell",
+    "nearby straight traversable goal available",
+    "Gazebo truth endpoint sampled",
+    "path and nonzero chassis commands received",
+    "Gazebo robot moved over 0.5 m",
+    "parked robot within 0.35 m of goal"
+  ],
+  "start": [
+    3.399872955913408,
+    9.50075366368758
+  ],
+  "truth_start": [
+    3.4023655964954407,
+    9.50194502170481
+  ],
+  "goal": [
+    4.599872955913408,
+    9.50075366368758
+  ],
+  "final": [
+    4.536526424202263,
+    9.506677015379337
+  ],
+  "truth_final": [
+    4.521630663146835,
+    9.52721567515163
+  ],
+  "final_goal_error_m": 0.06362286676263028,
+  "minimum_goal_error_m": 0.18204936087878246,
+  "truth_displacement_m": 1.1195503094331134,
+  "distance_moved": 1.136668902129528,
+  "nonzero_commands": 84,
+  "plan_points": 171,
+  "original_points": 28,
+  "smoothed_points": 171,
+  "counts": {
+    "odom": 38,
+    "cloud": 38,
+    "truth": 2,
+    "cmd": 201,
+    "status": 80,
+    "dynamic": 16,
+    "plan": 5,
+    "original": 4,
+    "smoothed": 4,
+    "static": 1,
+    "derived": 1
+  },
+  "pose_samples": [
+    [
+      3.39969301960298,
+      9.500321585064027
+    ],
+    [
+      3.8844332492976097,
+      9.502406121385079
+    ]
+  ]
+}

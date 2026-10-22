@@ -2,6 +2,7 @@
   ros__parameters:
     parent_frame : map
     target_frame : odom
-    X : 0.0
-    Y : 0.0
+    X : 3.4
+    Y : 9.5
+    Z : 0.876
     Rotation : -1.095

@@ -55,7 +55,7 @@ def generate_launch_description():
         )
     declare_save_pcd = DeclareLaunchArgument(
         'pcd_save.pcd_save_en', 
-        default_value='True',
+        default_value='False',
         )
     declare_namespace = DeclareLaunchArgument(
         "namespace",

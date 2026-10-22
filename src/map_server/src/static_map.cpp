@@ -63,10 +63,8 @@ loadStaticMapFiles(const StaticMapFiles& files)
       double p = in.pixels.at<uint8_t>(y, x) / 255.0;
       if (!negate)
         p = 1 - p;
-      if (p <= occupied && p >= free)
-        throw std::invalid_argument("Unknown/ambiguous occupancy at pixel " + std::to_string(x) +
-                                    "," + std::to_string(y));
-      out.occupancy.data[index(in.pixels, x, y)] = p > occupied ? 1 : 0;
+      // The planning grid is binary: ROS unknown/ambiguous cells remain blocked.
+      out.occupancy.data[index(in.pixels, x, y)] = p < free ? 0 : 1;
     }
   if (!files.region_yaml.empty())
   {

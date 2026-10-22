@@ -8,13 +8,9 @@ uint8[] fused_obstacles
 float32[] distance_field
 float32[] costmap
 uint8[] collision_mask
-map_server/DynamicHealth health_at_build
 float64 generated_at_s
 float64 hard_radius_m
 float64 fusion_ms
 float64 edt_ms
 float64 costmap_ms
 float64 cloud_ms
-uint16[] region_id
-float32[] height
-float32[] depth

@@ -2,22 +2,21 @@
 #include "topology_global_planner/grid/yastar_core.hpp"
 namespace topology_global_planner::grid
 {
-GridPlanner::GridPlanner(map_server::Costmap2D* costmap,
-                         const std::string& frame,
+GridPlanner::GridPlanner(const std::string& frame,
                          rclcpp::Clock::SharedPtr clock,
                          Options options)
-  : costmap_(costmap)
-  , global_frame_(frame)
+  : global_frame_(frame)
   , clock_(std::move(clock))
   , options_(options)
 {
-  if (!costmap_ || !clock_ || frame != "map" || !std::isfinite(options.tolerance) ||
+  if (!clock_ || frame != "map" || !std::isfinite(options.tolerance) ||
       options.tolerance < 0)
     throw std::invalid_argument("Invalid float grid planner configuration");
 }
 nav_msgs::msg::Path
 GridPlanner::plan(const geometry_msgs::msg::PoseStamped& start,
                   const geometry_msgs::msg::PoseStamped& goal,
+                  const map_server::MapView & view,
                   GoalPolicy policy,
                   std::function<bool()> cancelled)
 {
@@ -25,7 +24,7 @@ GridPlanner::plan(const geometry_msgs::msg::PoseStamped& start,
     cancelled = [] { return false; };
   if (start.header.frame_id != global_frame_ || goal.header.frame_id != global_frame_)
     throw std::invalid_argument("Planner frame mismatch");
-  const auto maps = costmap_->getDerivedMaps();
+  const auto maps = view.derivedMaps();
   if (!maps)
     throw std::runtime_error("No derived map");
   const auto& g = maps->geometry;

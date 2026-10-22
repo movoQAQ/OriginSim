@@ -17,7 +17,7 @@
 #include "nav_executor/path_executor.hpp"
 #include "nav_executor/route_monitor.hpp"
 #include "nav_executor/path_collision.hpp"
-#include "map_server/costmap_client.hpp"
+#include "map_server/map_client.hpp"
 #include "rclcpp/parameter_map.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/u_int64.hpp"
@@ -39,7 +39,7 @@ void requestShutdown(int)
 namespace nav_executor
 {
 // 代价地图生产端与客户端共用导航配置
-rclcpp::NodeOptions costmapClientOptions(
+rclcpp::NodeOptions mapClientOptions(
   const std::string & filename, const std::string & producer, bool use_sim_time)
 {
   if (filename.empty()) {
@@ -49,7 +49,7 @@ rclcpp::NodeOptions costmapClientOptions(
   auto parameters = rclcpp::parameters_from_map(
     rclcpp::parameter_map_from_yaml_file(filename, source_name.c_str()), source_name.c_str());
   if (parameters.empty()) {
-    throw std::invalid_argument("Missing costmap settings for " + producer + " in " + filename);
+    throw std::invalid_argument("Missing map client settings for " + producer + " in " + filename);
   }
   // 启动时的时钟覆盖配置同步应用于进程内客户端
   bool clock_found = false;
@@ -120,8 +120,7 @@ void validateTopology(const std::string & filename)
 class NavExecutor : public rclcpp::Node
 {
 public:
-  NavExecutor(std::shared_ptr<map_server::CostmapClient> costmap,
-    const std::shared_ptr<map_server::CostmapClient> & local_costmap)
+  NavExecutor(std::shared_ptr<map_server::MapClient> costmap)
       : Node("nav_executor"), costmap_(std::move(costmap)),
         tasks_(declare_parameter("goal_tolerance", 0.02),
           declare_parameter("retry_delay", 1.0),
@@ -186,11 +185,9 @@ public:
 
     declare_parameter("stopped_velocity_tolerance", 0.05);
     double body_radius =
-      std::max(costmap_->settings().robot_radius, local_costmap->settings().robot_radius);
-    for (const auto & client : {costmap_, local_costmap}) {
-      for (const auto & vertex : client->getRobotFootprint()) {
-        body_radius = std::max(body_radius, std::hypot(vertex.x, vertex.y));
-      }
+      costmap_->settings().robot_radius;
+    for (const auto & vertex : costmap_->getRobotFootprint()) {
+      body_radius = std::max(body_radius, std::hypot(vertex.x, vertex.y));
     }
     ConnectorConfig connector_config;
     const bool connector_enabled = declare_parameter("connector_executor.enabled", true);
@@ -269,11 +266,10 @@ public:
       rclcpp::Parameter("TopoPlanner.connector_entry_clearance", connector_entry_clearance_));
     planner_->initialize(planner_node_,
       costmap_->getTfBuffer(),
-      &snapshot_,
       global_frame_,
       costmap_->getBaseFrameID());
     if (declare_parameter("use_region_raster", false)) {
-      planner_->setRegionQuery([this](const Eigen::Vector2d & p) {return costmap_->regionAt(p);});
+      planner_->useRegionRaster(true);
     }
     planner_executor_.add_node(planner_node_);
     worker_ = std::make_unique<PathPlanner>(
@@ -285,23 +281,14 @@ public:
         if (!costmap_->getRobotPose(start)) {
           throw std::runtime_error("Robot pose TF unavailable");
         }
-        // 所有拓扑分段共用同一快照，实时地图继续更新
-        auto * live = costmap_->getCostmap();
-        {
-          std::unique_lock<map_server::Costmap2D::mutex_t> lock(*live->getMutex());
-          snapshot_ = *live;
-        }
-        if (snapshot_.getSizeInCellsX() < 3 || snapshot_.getSizeInCellsY() < 3) {
-          throw std::runtime_error("Global costmap has no usable map");
-        }
-        // Both float search and SFC retain this exact immutable DerivedMaps version.
-        const auto smoothing_map = snapshot_;
+        const auto view=costmap_->view();
+        if(!costmap_->isCurrent(*view))throw std::runtime_error("Planning MapView is not current");
         const auto deadline =
           TaskManager::Clock::now() + std::chrono::duration<double>(planning_timeout_);
         auto timed_cancel = [cancelled, deadline]() {
           return cancelled() || !rclcpp::ok() || TaskManager::Clock::now() >= deadline;
         };
-        auto path = planner_->plan(start, request.goal, request.active_connector, timed_cancel);
+        auto path = planner_->plan(start, request.goal, request.active_connector, view, timed_cancel);
         if (TaskManager::Clock::now() >= deadline) {
           throw std::runtime_error("Global planning timed out");
         }
@@ -312,7 +299,7 @@ public:
         }
         const auto result = smoother_->smooth(
           path,
-          smoothing_map,
+          *view,
           smoothing_body_radius_,
           [this, &path](const auto & candidate) {
             return planner_->validateSmoothedPlan(path, candidate);
@@ -474,9 +461,8 @@ public:
         const bool current_result = result->identity == tasks_.identity();
         auto original_path = result->original_path;
         if (result->identity == tasks_.identity() && !result->plan.full_path.poses.empty()) {
-          auto * grid = costmap_->getCostmap();
-          std::lock_guard<map_server::Costmap2D::mutex_t> lock(*grid->getMutex());
-          if (!costmap_->isCurrent() || result->plan.full_path.header.frame_id != global_frame_ ||
+          const auto grid=costmap_->view();
+          if (!costmap_->isCurrent(*grid) || result->plan.full_path.header.frame_id != global_frame_ ||
               !pathIsClear(result->plan.full_path, *grid, path_clearance_))
           {
             result->plan.full_path.poses.clear();
@@ -505,16 +491,15 @@ public:
     publishTask();
   }
 
-  void initializeExecutor(const std::shared_ptr<map_server::CostmapClient> & local_costmap)
+  void initializeExecutor()
   {
     executor_ = std::make_unique<PathExecutor>(
       shared_from_this(),
-      local_costmap,
+      costmap_,
       [this]() {
         if (!ready_) {
           return false;
         }
-        std::unique_lock<map_server::Costmap2D::mutex_t> lock(*costmap_->getCostmap()->getMutex());
         return costmap_->isCurrent();
       },
       [this](PlanIdentity identity, const std::string & error) {
@@ -619,9 +604,8 @@ private:
     }
     std::optional<ReplanEvent> event;
     {
-      auto * grid = costmap_->getCostmap();
-      std::lock_guard<map_server::Costmap2D::mutex_t> lock(*grid->getMutex());
-      if (!costmap_->isCurrent()) {
+      const auto grid=costmap_->view();
+      if (!costmap_->isCurrent(*grid)) {
         monitor_->resetBlocked();
         return;
       }
@@ -629,14 +613,11 @@ private:
       for (const auto & vertex : costmap_->getRobotFootprint()) {
         radius = std::max(radius, std::hypot(vertex.x, vertex.y));
       }
-      auto latest_grid = *grid;
-      const auto latest_dynamic = costmap_->getLatestDynamicObstacles();
-      latest_grid.setLatestDynamic(latest_dynamic);
       event = monitor_->observeBlocked(tasks_.plan().full_path,
         tasks_.identity(),
         *pose,
-        latest_grid,
-        latest_dynamic ? static_cast<int64_t>(latest_dynamic->input_version) : 0,
+        *grid,
+        static_cast<int64_t>(grid->status().input_version),
         radius,
         now);
     }
@@ -740,7 +721,7 @@ private:
     }
   }
 
-  std::shared_ptr<map_server::CostmapClient> costmap_;
+  std::shared_ptr<map_server::MapClient> costmap_;
   TaskManager tasks_;
   std::unique_ptr<ConnectorExecutor> connector_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pitch_pub_;
@@ -760,7 +741,6 @@ private:
   double path_clearance_{0.0};
   double connector_entry_clearance_{0.0};
   std::atomic<bool> ready_{false};
-  map_server::Costmap2D snapshot_;
   rclcpp::Node::SharedPtr planner_node_;
   rclcpp::executors::SingleThreadedExecutor planner_executor_;
   std::unique_ptr<topology_global_planner::TopologyGlobalPlanner> planner_;
@@ -793,10 +773,10 @@ int main(int argc, char ** argv)
     const auto params_file = config->declare_parameter("navigation_params_file", std::string{});
     const bool use_sim_time = config->get_parameter("use_sim_time").as_bool();
     config.reset();
-    auto maps = std::make_shared<map_server::CostmapClient>("map_client",
-      nav_executor::costmapClientOptions(params_file, "map_client", use_sim_time));
-    auto node = std::make_shared<nav_executor::NavExecutor>(maps, maps);
-    node->initializeExecutor(maps);
+    auto maps = std::make_shared<map_server::MapClient>("map_client",
+      nav_executor::mapClientOptions(params_file, "map_client", use_sim_time));
+    auto node = std::make_shared<nav_executor::NavExecutor>(maps);
+    node->initializeExecutor();
     // 控制计算期间独立接收里程计与快照，默认回调组串行处理任务和控制接口
     rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions{}, 4);
     executor.add_node(maps);

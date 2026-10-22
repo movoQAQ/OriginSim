@@ -20,6 +20,8 @@ namespace modify_map_to_odom
         this->declare_parameter<std::string>("target_frame", "odom");
         this->declare_parameter<double>("X", 0.0);
         this->declare_parameter<double>("Y", 0.0);
+        this->declare_parameter<double>("Z", 0.0);
+        this->get_parameter<double>("Z", z);
         this->declare_parameter<double>("Rotation", 0.0);
         this->get_parameter<std::string>("parent_frame", parent_frame);
         this->get_parameter<std::string>("target_frame", target_frame);
@@ -71,7 +73,7 @@ namespace modify_map_to_odom
         x = 0.88;
         y = -0.816;
         map_to_odom.translation() = Eigen::Vector3d(
-            x, y, 0);
+            x, y, z);
 
         tf2::Quaternion q;
         yaw = 0.0;
@@ -99,7 +101,7 @@ namespace modify_map_to_odom
     {
         map_to_odom_lock.lock();
         map_to_odom.translation() = Eigen::Vector3d(
-            directionArray[0], directionArray[1], 0);
+            directionArray[0], directionArray[1], z);
         tf2::Quaternion q;
         q.setRPY(roll, pitch, directionArray[2]);
         map_to_odom.linear() = Eigen::Quaterniond(

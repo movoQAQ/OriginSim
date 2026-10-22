@@ -47,7 +47,7 @@ public:
         );
 
         pub_fake_timer = this->create_wall_timer(
-            std::chrono::milliseconds(10),std::bind(&FakeBaselink::pub_fake_callback,this)
+            std::chrono::milliseconds(50),std::bind(&FakeBaselink::pub_fake_callback,this)
         );
 
         init_base_link_fake();
@@ -56,20 +56,20 @@ public:
     void init_base_link_fake()
     {
         geometry_msgs::msg::TransformStamped odom_to_base_link,fake_trans;
-        while (1)
+        try
         {
-            try
-            {
-                odom_to_base_link = tf2_buffer->lookupTransform(odom_frame_id,base_link_frame_id,rclcpp::Time(0));
-                break;
-            }
-            catch(...){
-            }
+            odom_to_base_link = tf2_buffer->lookupTransform(odom_frame_id,base_link_frame_id,rclcpp::Time(0));
+        }
+        catch (const tf2::TransformException &)
+        {
+            // TF may not exist until Point-LIO finishes initialization.
+            // Retry from the timer so startup and shutdown remain responsive.
+            return;
         }
         fake_q = odom_to_base_link.transform.rotation;
         base_link_translation = odom_to_base_link.transform.translation;
 
-        fake_trans.header.stamp = odom_to_base_link.header.stamp;
+        fake_trans.header.stamp = this->get_clock()->now();
         fake_trans.header.frame_id = odom_frame_id;
         fake_trans.child_frame_id = base_link_fake_frame_id;
 
@@ -89,14 +89,14 @@ public:
         {
             odom_to_base_link = tf2_buffer->lookupTransform(odom_frame_id,base_link_frame_id,rclcpp::Time(0));
         }
-        catch(...){}
+        catch (const tf2::TransformException &) {return;}
 
         geometry_msgs::msg::Twist cmd_vel_after;
 
         double base_link_angle = tf2::getYaw(odom_to_base_link.transform.rotation);
         double angle_diff = base_link_angle - tf2::getYaw(fake_q);
 
-        cmd_vel_after.angular.z = 0.0;
+        cmd_vel_after.angular.z = cmd_vel->angular.z;
         cmd_vel_after.linear.x = cmd_vel->linear.x * cos(angle_diff) + cmd_vel->linear.y * sin(angle_diff);
         cmd_vel_after.linear.y = -cmd_vel->linear.x * sin(angle_diff) + cmd_vel->linear.y * cos(angle_diff);
 
@@ -106,8 +106,10 @@ public:
 
     void pub_fake_callback()
     {
-        if (!ready)
+        if (!ready) {
+            init_base_link_fake();
             return;
+        }
 
         geometry_msgs::msg::TransformStamped fake_trans,odom_to_base_link;
 
@@ -118,7 +120,7 @@ public:
         }
         catch(...){}
 
-        fake_trans.header.stamp = odom_to_base_link.header.stamp;
+        fake_trans.header.stamp = this->get_clock()->now();
         fake_trans.header.frame_id = odom_frame_id;
         fake_trans.child_frame_id = base_link_fake_frame_id;
 
@@ -136,7 +138,7 @@ private:
     std::string cmd_vel_topic_name;
     std::string cmd_vel_after_topic_name;
     
-    std::int8_t ready;
+    bool ready{false};
 
     float forward_distance;
 

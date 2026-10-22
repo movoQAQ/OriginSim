@@ -1,4 +1,4 @@
-#include "map_server/costmap_2d.hpp"
+#include "map_server/map_view.hpp"
 #include "map_server/edt_2d.hpp"
 #include "map_server/map_server.hpp"
 #include "map_server/radar_rasterizer.hpp"
@@ -108,7 +108,8 @@ TEST(Static, MissingAndUnknown)
   EXPECT_EQ(loadStaticMapFiles(f.files).region_id.data[0], INVALID_REGION);
   cv::Mat image(40, 40, CV_8UC1, cv::Scalar(128));
   cv::imwrite((f.dir / "map.pgm").string(), image);
-  EXPECT_THROW(loadStaticMapFiles(f.files), std::invalid_argument);
+  auto map=loadStaticMapFiles(f.files);
+  EXPECT_EQ(std::count(map.occupancy.data.begin(),map.occupancy.data.end(),1),1600);
 }
 TEST(Static, RegionCanCoverObstacle)
 {
@@ -210,7 +211,7 @@ TEST(Fusion, FarRadarAndStaticSurviveClear)
 {
   auto b = grid(200, 50);
   b.data[1] = 1;
-  rasterizeRadar(b, { target(4, 18, 2) });
+  rasterizeObstacles(b, { {{18, 2}, 0.2} });
   EXPECT_EQ(b.data[20 * 200 + 180], 1);
   EXPECT_EQ(b.data[1], 1);
 }
@@ -360,7 +361,7 @@ TEST(Worker, HealthOnlyDoesNotRegenerateAndRollbackClearsRadar)
   ASSERT_TRUE(until([&] { return server.getDerivedMaps()->version > old->version; }));
   server.advanceTime(1, 101);
   EXPECT_EQ(server.getDynamicHealth().radar_enemies, SourceStatus::MISSING);
-  EXPECT_TRUE(server.getLatestDynamicObstacles()->enemies.empty());
+  EXPECT_TRUE(server.getLatestDynamicObstacles()->circles.empty());
   server.stop();
 }
 TEST(Worker, CloudAndRadarTimeoutIndependently)
@@ -420,7 +421,7 @@ TEST(Worker, LocalizationJumpResetsCloudOnly)
       return v->cloud_mask &&
              std::count(v->cloud_mask->data.begin(), v->cloud_mask->data.end(), 1) == 0;
     }));
-  EXPECT_EQ(server.getLatestDynamicObstacles()->enemies.size(), 1u);
+  EXPECT_EQ(server.getLatestDynamicObstacles()->circles.size(), 1u);
   server.stop();
 }
 TEST(Worker, StopAndRestart)
@@ -474,11 +475,13 @@ TEST(Search, ContinuousCostAvoidsExpensiveBand)
 TEST(View, RetainsSameDerivedPointer)
 {
   auto m = std::make_shared<DerivedMaps>(derive(grid()));
-  Costmap2D a;
-  a.setSnapshot(m);
-  Costmap2D b = a;
-  EXPECT_EQ(a.getDerivedMaps(), b.getDerivedMaps());
-  EXPECT_EQ(b.getDerivedMaps()->collision_mask.data, m->collision_mask.data);
+  auto st = std::make_shared<StaticMap>();
+  st->geometry = m->geometry; st->occupancy = grid();
+  MapView a(st, m);
+  MapView b = a;
+  EXPECT_TRUE(b.ready());
+  EXPECT_EQ(a.derivedMaps(), b.derivedMaps());
+  EXPECT_EQ(b.derivedMaps()->collision_mask.data.data(), m->collision_mask.data.data());
 }
 TEST(Cost,RejectFloatOverflowInsteadOfFalseCollision) {
   auto b=grid(100,100);b.data[50*100+50]=1;

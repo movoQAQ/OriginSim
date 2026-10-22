@@ -73,6 +73,7 @@ MapServer::resetLocked()
   pending_cloud_.reset();
   worker_error_.clear();
   cloud_mask_.reset();
+  derived_.reset();
   cloud_seen_ = false;
   cloud_error_ = false;
   cloud_stamp_ = 0;
@@ -183,10 +184,12 @@ MapServer::getLatestDynamicObstacles() const
   auto v = std::make_shared<DynamicObstacleView>();
   v->input_version = input_version_;
   v->cloud_mask = cloud_mask_;
-  v->allies = allies_.active(ros_now_, steady_now_);
-  v->enemies = enemies_.active(ros_now_, steady_now_);
-  v->health = healthLocked();
+  for(const auto & t:allies_.active(ros_now_,steady_now_))v->circles.push_back({t.xy_map,t.physical_radius_m});
+  for(const auto & t:enemies_.active(ros_now_,steady_now_))v->circles.push_back({t.xy_map,t.physical_radius_m});
   return v;
+}
+std::shared_ptr<const StaticMap> MapServer::getStaticMap() const {
+  std::lock_guard<std::mutex> lock(mutex_);return static_;
 }
 std::shared_ptr<const DerivedMaps>
 MapServer::getDerivedMaps() const
@@ -369,9 +372,8 @@ MapServer::run()
         now = ros_now_;
         steady = steady_now_;
         worker_error_.clear();
-        view->allies = allies_.active(now, steady);
-        view->enemies = enemies_.active(now, steady);
-        view->health = healthLocked();
+        for(const auto & t:allies_.active(now,steady))view->circles.push_back({t.xy_map,t.physical_radius_m});
+        for(const auto & t:enemies_.active(now,steady))view->circles.push_back({t.xy_map,t.physical_radius_m});
         view->input_version = input_version_;
         input = input_version_;
       }
@@ -381,8 +383,7 @@ MapServer::run()
       result->fused_obstacles = static_->occupancy;
       if (mask)
         overlayConservative(result->fused_obstacles, *mask);
-      rasterizeRadar(result->fused_obstacles, view->allies);
-      rasterizeRadar(result->fused_obstacles, view->enemies);
+      rasterizeObstacles(result->fused_obstacles, view->circles);
       result->fusion_ms = elapsed(fusion_begin);
       if (result->fused_obstacles.data != last_fused)
       {
@@ -394,7 +395,6 @@ MapServer::run()
         result->costmap_ms = elapsed(cost_begin);
         result->version = ++version;
         result->input_version = input;
-        result->health_at_build = view->health;
         result->generated_at_s = now;
         result->cloud_ms = cloud_ms;
         std::lock_guard<std::mutex> lock(mutex_);

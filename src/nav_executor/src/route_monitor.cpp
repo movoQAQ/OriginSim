@@ -44,7 +44,7 @@ void RouteMonitor::reset()
 void RouteMonitor::resetBlocked()
 {
   blocked_identity_.reset();
-  blocked_map_stamp_.reset();
+  blocked_input_version_.reset();
   blocked_sample_.reset();
   blocked_since_.reset();
   blocked_count_ = 0;
@@ -53,8 +53,8 @@ void RouteMonitor::resetBlocked()
 std::optional<ReplanEvent> RouteMonitor::observeBlocked(const nav_msgs::msg::Path & path,
   PlanIdentity identity,
   const geometry_msgs::msg::PoseStamped & pose,
-  const map_server::Costmap2D & grid,
-  int64_t map_stamp,
+  const map_server::MapView & grid,
+  int64_t input_version,
   double robot_radius,
   TaskManager::Clock::time_point now)
 {
@@ -62,8 +62,8 @@ std::optional<ReplanEvent> RouteMonitor::observeBlocked(const nav_msgs::msg::Pat
   if (!config_.enabled || !config_.path_blocked_enabled || path.poses.empty() ||
       path.header.frame_id.empty() || path.header.frame_id != pose.header.frame_id ||
       !std::isfinite(position.x) || !std::isfinite(position.y) || !std::isfinite(robot_radius) ||
-      robot_radius <= 0.0 || map_stamp <= 0 || grid.getSizeInCellsX() == 0 ||
-      grid.getSizeInCellsY() == 0)
+      robot_radius <= 0.0 || input_version <= 0 || grid.geometry().width == 0 ||
+      grid.geometry().height == 0)
   {
     resetBlocked();
     return std::nullopt;
@@ -76,13 +76,13 @@ std::optional<ReplanEvent> RouteMonitor::observeBlocked(const nav_msgs::msg::Pat
     resetBlocked();
     blocked_identity_ = identity;
   }
-  if (blocked_map_stamp_ && map_stamp <= *blocked_map_stamp_) {
-    if (map_stamp < *blocked_map_stamp_) {
+  if (blocked_input_version_ && input_version <= *blocked_input_version_) {
+    if (input_version < *blocked_input_version_) {
       resetBlocked();
     }
     return std::nullopt;
   }
-  blocked_map_stamp_ = map_stamp;
+  blocked_input_version_ = input_version;
   blocked_sample_ = now;
 
   // 将机器人投影到路径后沿前向弧长检查，兼容重复路点与曲线路径

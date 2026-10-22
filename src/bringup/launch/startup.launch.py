@@ -6,6 +6,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import ComposableNodeContainer
@@ -33,6 +34,7 @@ def generate_launch_description():
     )
 
     start_rviz = Node(
+        condition=IfCondition(LaunchConfiguration('rviz')),
         package='rviz2',
         executable='rviz2',
         name='rviz2',
@@ -57,7 +59,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(os.path.join(
             get_package_share_directory('map_server'), 'launch', 'map_server.launch.py')),
         launch_arguments={
-            'map': os.path.join(bringup_dir, 'map', 'rmuc_2026.yaml'),
+            'map': os.path.join(bringup_dir, 'map', 'rmuc_2027.yaml'),
             'use_sim_time': 'true',
             'params_file': params_file,
             'static_pcd': LaunchConfiguration('static_pcd'),
@@ -71,7 +73,8 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        DeclareLaunchArgument('static_pcd', default_value=''),
+        DeclareLaunchArgument('rviz', default_value='true'),
+        DeclareLaunchArgument('static_pcd', default_value=os.path.join(bringup_dir, 'map', 'rmuc_2027.pcd')),
         DeclareLaunchArgument('region_yaml', default_value=''),
         pointlio,
         container,

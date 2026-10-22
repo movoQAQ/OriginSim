@@ -3,27 +3,27 @@
 namespace map_server
 {
 void
-rasterizeRadar(BinaryGrid& grid, const std::vector<RadarTarget>& targets)
+rasterizeObstacles(BinaryGrid& grid, const std::vector<ObstacleCircle>& targets)
 {
   grid.validate();
   const auto& g = grid.geometry;
   for (const auto& t : targets)
   {
-    if (!t.xy_map.allFinite() || !std::isfinite(t.physical_radius_m) || t.physical_radius_m < 0)
+    if (!t.center.allFinite() || !std::isfinite(t.radius_m) || t.radius_m < 0)
       throw std::invalid_argument("Invalid radar circle");
-    const double r = t.physical_radius_m;
+    const double r = t.radius_m;
     const auto bound = [](double value, int limit)
     { return static_cast<int>(std::clamp(value, 0.0, static_cast<double>(limit))); };
-    int x0 = bound(std::floor((t.xy_map.x() - r - g.origin_x) / g.resolution), g.width);
-    int y0 = bound(std::floor((t.xy_map.y() - r - g.origin_y) / g.resolution), g.height);
-    int x1 = bound(std::floor((t.xy_map.x() + r - g.origin_x) / g.resolution) + 1, g.width);
-    int y1 = bound(std::floor((t.xy_map.y() + r - g.origin_y) / g.resolution) + 1, g.height);
+    int x0 = bound(std::floor((t.center.x() - r - g.origin_x) / g.resolution), g.width);
+    int y0 = bound(std::floor((t.center.y() - r - g.origin_y) / g.resolution), g.height);
+    int x1 = bound(std::floor((t.center.x() + r - g.origin_x) / g.resolution) + 1, g.width);
+    int y1 = bound(std::floor((t.center.y() + r - g.origin_y) / g.resolution) + 1, g.height);
     for (int y = y0; y < y1; ++y)
       for (int x = x0; x < x1; ++x)
       {
         const auto c = g.center(static_cast<size_t>(y) * g.width + x);
-        double dx = std::max(std::abs(t.xy_map.x() - c.x()) - g.resolution * 0.5, 0.0);
-        double dy = std::max(std::abs(t.xy_map.y() - c.y()) - g.resolution * 0.5, 0.0);
+        double dx = std::max(std::abs(t.center.x() - c.x()) - g.resolution * 0.5, 0.0);
+        double dy = std::max(std::abs(t.center.y() - c.y()) - g.resolution * 0.5, 0.0);
         if (dx * dx + dy * dy <= r * r)
           grid.data[static_cast<size_t>(y) * g.width + x] = 1;
       }

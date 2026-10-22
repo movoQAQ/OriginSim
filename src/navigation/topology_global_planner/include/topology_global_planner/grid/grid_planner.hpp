@@ -7,7 +7,7 @@
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "nav_msgs/msg/path.hpp"
-#include "map_server/costmap_2d.hpp"
+#include "map_server/map_view.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 
@@ -30,18 +30,17 @@ public:
     bool use_final_approach_orientation{true};
   };
 
-  GridPlanner(map_server::Costmap2D * costmap,
-    const std::string & global_frame,
+  GridPlanner(const std::string & global_frame,
     rclcpp::Clock::SharedPtr clock,
     Options options);
 
   nav_msgs::msg::Path plan(const geometry_msgs::msg::PoseStamped & start,
     const geometry_msgs::msg::PoseStamped & goal,
+    const map_server::MapView & view,
     GoalPolicy goal_policy,
     std::function<bool()> cancel_checker);
 
 private:
-  map_server::Costmap2D * costmap_;
   std::string global_frame_;
   rclcpp::Clock::SharedPtr clock_;
   Options options_;

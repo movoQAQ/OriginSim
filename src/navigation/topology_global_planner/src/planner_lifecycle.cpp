@@ -47,18 +47,16 @@ namespace topology_global_planner
 
 void TopologyGlobalPlanner::initialize(rclcpp::Node::SharedPtr node,
   std::shared_ptr<tf2_ros::Buffer> tf,
-  map_server::Costmap2D * costmap,
   std::string global_frame,
   std::string robot_base_frame,
   std::string name)
 {
-  if (!node || !tf || !costmap || global_frame.empty() || robot_base_frame.empty()) {
+  if (!node || !tf || global_frame.empty() || robot_base_frame.empty()) {
     throw std::invalid_argument("TopologyGlobalPlanner: invalid initialization arguments");
   }
 
   node_ = std::move(node);
   tf_ = std::move(tf);
-  costmap_ = costmap;
   global_frame_ = std::move(global_frame);
   robot_base_frame_ = std::move(robot_base_frame);
   name_ = std::move(name);
@@ -108,7 +106,7 @@ void TopologyGlobalPlanner::initialize(rclcpp::Node::SharedPtr node,
   node_->get_parameter(
     name_ + ".grid.use_final_approach_orientation", options.use_final_approach_orientation);
 
-  grid_planner_ = std::make_unique<grid::GridPlanner>(costmap_, global_frame_, clock_, options);
+  grid_planner_ = std::make_unique<grid::GridPlanner>(global_frame_, clock_, options);
   RCLCPP_INFO(logger_, "Standalone GridPlanner initialized");
 
   connector_debug_markers_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>(
@@ -167,12 +165,15 @@ void TopologyGlobalPlanner::publishCurrentRegion()
 TopologyPlan TopologyGlobalPlanner::plan(const geometry_msgs::msg::PoseStamped & start,
   const geometry_msgs::msg::PoseStamped & goal,
   const std::optional<Segment> & active_connector,
+  std::shared_ptr<const map_server::MapView> view,
   std::function<bool()> cancel_checker)
 {
   if (!grid_planner_) {
     throw std::runtime_error("GridPlanner is not initialized");
   }
 
+  if(!view || !view->ready())throw std::invalid_argument("Planning requires an immutable MapView");
+  active_view_=std::move(view);
   cancel_checker_ = cancel_checker ? std::move(cancel_checker) : []() {
     return false;
   };

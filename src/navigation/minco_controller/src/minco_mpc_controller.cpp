@@ -6,7 +6,7 @@
 #include <mutex>
 #include <stdexcept>
 
-#include "map_server/costmap_client.hpp"
+#include "map_server/map_client.hpp"
 #include "map_server/footprint.hpp"
 #include "minco_controller/costmap_cost.hpp"
 #include "tf2/utils.h"
@@ -29,12 +29,12 @@ bool finitePose(const geometry_msgs::msg::Pose & pose)
 }
 
 void MincoMpcController::initialize(const rclcpp::Node::WeakPtr & parent,
-  const std::string & name, const std::shared_ptr<map_server::CostmapClient> & costmap)
+  const std::string & name, const std::shared_ptr<map_server::MapClient> & costmap)
 {
   const auto node = parent.lock();
   if (solver_) {throw std::logic_error("MPC controller is already initialized");}
   if (!node || !costmap || name.empty()) {
-    throw std::invalid_argument("MPC requires a node, instance name and CostmapClient");
+    throw std::invalid_argument("MPC requires a node, instance name and MapClient");
   }
   rcl_interfaces::msg::ParameterDescriptor descriptor;
   descriptor.read_only = true;
@@ -158,12 +158,11 @@ void MincoMpcController::setPlan(const nav_msgs::msg::Path & path)
 }
 
 void MincoMpcController::checkPrediction(
-  const std::vector<State> & prediction, const std::string & stage) const
+  const std::vector<State> & prediction, const std::string & stage, const map_server::MapView & view) const
 {
-  auto * grid = costmap_->getCostmap();
-  std::unique_lock<map_server::Costmap2D::mutex_t> lock(*grid->getMutex());
-  const double resolution = grid->getResolution();
-  if (grid->getSizeInCellsX() < 3 || grid->getSizeInCellsY() < 3 || resolution <= 0.0) {
+  const auto * grid = &view;
+  const double resolution = grid->geometry().resolution;
+  if (grid->geometry().width < 3 || grid->geometry().height < 3 || resolution <= 0.0) {
     throw std::runtime_error("MPC local costmap has no usable grid");
   }
   const auto & footprint = costmap_->getRobotFootprint();
@@ -173,23 +172,23 @@ void MincoMpcController::checkPrediction(
   // includes robot clearance and must not be expanded here again.
   const auto check = [&](double x, double y, size_t step) {
       unsigned int mx, my;
-      if (!grid->worldToMap(x - radius, y - radius, mx, my) ||
-        !grid->worldToMap(x + radius, y + radius, mx, my))
+      if (!grid->worldToCell(x - radius, y - radius, mx, my) ||
+        !grid->worldToCell(x + radius, y + radius, mx, my))
       {throw std::runtime_error("MPC " + stage + " leaves the local costmap");}
       const double reach = radius + resolution * std::sqrt(0.5);
       const int cells = static_cast<int>(std::ceil(reach / resolution));
-      grid->worldToMap(x, y, mx, my);
+      grid->worldToCell(x, y, mx, my);
       for (int dy = -cells; dy <= cells; ++dy) {
         for (int dx = -cells; dx <= cells; ++dx) {
           const int ix = static_cast<int>(mx) + dx, iy = static_cast<int>(my) + dy;
-          if (ix < 0 || iy < 0 || ix >= static_cast<int>(grid->getSizeInCellsX()) ||
-            iy >= static_cast<int>(grid->getSizeInCellsY())) {continue;}
-          double wx, wy;
-          grid->mapToWorld(ix, iy, wx, wy);
+          if (ix < 0 || iy < 0 || ix >= static_cast<int>(grid->geometry().width) ||
+            iy >= static_cast<int>(grid->geometry().height)) {continue;}
+          const auto center=grid->center(ix,iy);
+          const double wx=center.x(), wy=center.y();
           if (std::hypot(wx - x, wy - y) > reach) {continue;}
 
           // Physical footprint check uses uninflated fused occupancy.
-          if (!grid->rawObstacle(ix, iy)) {
+          if (!grid->latestOccupied(ix, iy)) {
             continue;
           }
           // 栅格尺寸为 resolution × resolution
@@ -234,6 +233,8 @@ void MincoMpcController::checkPrediction(
 geometry_msgs::msg::TwistStamped MincoMpcController::computeVelocityCommands(
   const geometry_msgs::msg::PoseStamped & pose, const geometry_msgs::msg::Twist & measured_speed)
 {
+  const auto view=costmap_->view();
+  if(!costmap_->isCurrent(*view))throw std::runtime_error("MPC map is not current");
   const auto node = node_.lock();
   if (!node || !solver_ || trajectory_.empty()) {throw std::logic_error("MPC has no active plan");}
   if (pose.header.frame_id != costmap_->getGlobalFrameID() || !finitePose(pose.pose) ||
@@ -303,15 +304,14 @@ geometry_msgs::msg::TwistStamped MincoMpcController::computeVelocityCommands(
   }
   Control control;
   std::vector<State> prediction;
-  // Snapshot construction locks the grid, then releases it before optimization.
-  // Positions, gradients and controls all use the local Costmap global frame.
+  // Cost field and every prediction check retain this same immutable MapView.
   const auto & footprint = costmap_->getRobotFootprint();
   const double radius = (footprint.empty() ? costmap_->settings().robot_radius :
     map_server::calculateMinAndMaxDistances(footprint).second) + collision_margin_;
-  const CostmapCost field(*costmap_->getCostmap(), obstacle_smoothing_distance_,
+  const CostmapCost field(*view, obstacle_smoothing_distance_,
     radius, config_.obstacle_trust_region);
   // This segment is fixed by measured velocity and cannot be repaired by U.
-  checkPrediction({observed, current}, "delay_projection");
+  checkPrediction({observed, current}, "delay_projection", *view);
   const auto sample_cost = [&field](const Eigen::Vector2d & p, CostLinearization & cost) {
       return field.sample(p, cost);
     };
@@ -335,18 +335,18 @@ geometry_msgs::msg::TwistStamped MincoMpcController::computeVelocityCommands(
   }
   if (std::hypot(vx, vy) < deadzone_) {vx = vy = 0.0;}
   prediction.insert(prediction.begin(), observed);
-  checkPrediction(prediction, "qp_horizon");
+  checkPrediction(prediction, "qp_horizon", *view);
   // Check the actual phase-compensated first command as well as the QP horizon.
   // Match the QP: measured velocity applies before actuation; the new command
   // applies after it. Do not apply the new command retroactively during latency.
   State next = current;
   next.x += vx * config_.dt;
   next.y += vy * config_.dt;
-  checkPrediction({current, next}, "output_command");
+  checkPrediction({current, next}, "output_command", *view);
   State held = observed;
   held.x += vx * (config_.control_period + control_delay_);
   held.y += vy * (config_.control_period + control_delay_);
-  checkPrediction({observed, held}, "command_hold");
+  checkPrediction({observed, held}, "command_hold", *view);
   geometry_msgs::msg::TwistStamped command;
   command.header.stamp = node->now();
   command.header.frame_id = costmap_->getBaseFrameID();

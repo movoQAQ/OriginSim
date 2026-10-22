@@ -10,7 +10,7 @@
 #include "nav_msgs/msg/path.hpp"
 #include "rclcpp/node.hpp"
 
-namespace map_server {class CostmapClient;}
+namespace map_server {class MapClient;class MapView;}
 
 namespace minco_controller
 {
@@ -18,7 +18,7 @@ class MincoMpcController
 {
 public:
   void initialize(const rclcpp::Node::WeakPtr & node, const std::string & name,
-    const std::shared_ptr<map_server::CostmapClient> & costmap);
+    const std::shared_ptr<map_server::MapClient> & costmap);
   void setPlan(const nav_msgs::msg::Path & path);
   void reset();
   geometry_msgs::msg::TwistStamped computeVelocityCommands(
@@ -26,9 +26,9 @@ public:
     const geometry_msgs::msg::Twist & measured_speed);
 
 private:
-  void checkPrediction(const std::vector<State> & prediction, const std::string & stage) const;
+  void checkPrediction(const std::vector<State> & prediction, const std::string & stage, const map_server::MapView & view) const;
   rclcpp::Node::WeakPtr node_;
-  std::shared_ptr<map_server::CostmapClient> costmap_;
+  std::shared_ptr<map_server::MapClient> costmap_;
   MPCConfig config_;
   std::unique_ptr<MpcSolver> solver_;
   PathTrajectory trajectory_;

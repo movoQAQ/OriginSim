@@ -40,7 +40,7 @@ main(int argc, char** argv)
     map_server::RadarTarget target{
       1, { g.width * g.resolution * 0.7, g.height * g.resolution * 0.6 }, 0, 0, 0.3 + 0.001 * i
     };
-    map_server::rasterizeRadar(m.fused_obstacles, { target });
+    map_server::rasterizeObstacles(m.fused_obstacles, { {target.xy_map, target.physical_radius_m} });
     auto f = Clock::now();
     m.distance_field = map_server::preciseEdt(m.fused_obstacles);
     auto e = Clock::now();

@@ -4,7 +4,7 @@
 
 #include "geometry_msgs/msg/twist.hpp"
 #include "nav_executor/task_manager.hpp"
-#include "map_server/costmap_2d.hpp"
+#include "map_server/map_view.hpp"
 
 namespace nav_executor
 {
@@ -38,8 +38,8 @@ public:
   std::optional<ReplanEvent> observeBlocked(const nav_msgs::msg::Path & path,
     PlanIdentity identity,
     const geometry_msgs::msg::PoseStamped & pose,
-    const map_server::Costmap2D & grid,
-    int64_t map_stamp,
+    const map_server::MapView & grid,
+    int64_t input_version,
     double robot_radius,
     TaskManager::Clock::time_point now);
   void resetBlocked();
@@ -52,7 +52,7 @@ private:
   std::optional<TaskManager::Clock::time_point> stall_since_;
   double progress_anchor_{0.0};
   std::optional<PlanIdentity> blocked_identity_;
-  std::optional<int64_t> blocked_map_stamp_;
+  std::optional<int64_t> blocked_input_version_;
   std::optional<TaskManager::Clock::time_point> blocked_sample_;
   std::optional<TaskManager::Clock::time_point> blocked_since_;
   unsigned int blocked_count_{0};

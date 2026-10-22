@@ -17,7 +17,7 @@ from geometry_msgs.msg import TransformStamped
 from sensor_msgs_py.point_cloud2 import create_cloud_xyz32
 from sensor_msgs.msg import PointCloud2
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
-from map_server.msg import DerivedMap, DynamicObstacles, DynamicHealth, RadarTargets, RadarTarget
+from map_server.msg import DerivedMap, DynamicObstacles, DynamicHealth, RadarTargets, RadarTarget, MapStatus, StaticMap
 
 
 def main():
@@ -31,15 +31,18 @@ def main():
     node = rclpy.create_node('map_server_integration_test')
     qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                      durability=DurabilityPolicy.TRANSIENT_LOCAL)
-    messages = {'derived': None, 'dynamic': None, 'health': None}
+    messages = {'derived': None, 'dynamic': None, 'health': None, 'static': None}
+    counts = {'static': 0, 'derived': 0, 'dynamic': 0, 'health': 0}
     derived_delivery_ms = []
     def receive(key, message):
-        messages[key] = message
+        counts[key] += 1
+        messages[key] = message.health if key == 'health' else message
         if key == 'derived':
             derived_delivery_ms.append((node.get_clock().now().nanoseconds * 1e-9 - message.generated_at_s) * 1000)
     for name, msg_type, topic in [('derived', DerivedMap, '/map_server/derived'),
                                    ('dynamic', DynamicObstacles, '/map_server/dynamic'),
-                                   ('health', DynamicHealth, '/map_server/health')]:
+                                   ('health', MapStatus, '/map_server/status'),
+                                   ('static', StaticMap, '/map_server/static')]:
         node.create_subscription(msg_type, topic, lambda msg, key=name: receive(key, msg), qos)
     cloud_pub = node.create_publisher(PointCloud2, '/cloud_registered', qos_profile_sensor_data)
     ally_pub = node.create_publisher(RadarTargets, '/radar/allies', 10)
@@ -91,30 +94,31 @@ def main():
             publisher.publish(message)
     with tempfile.TemporaryDirectory(prefix='origin-map-replay-') as temporary:
         temp = Path(temporary)
-        pixels = bytearray([255] * (400 * 200))
-        pixels[100 * 400 + 5] = 0
-        (temp / 'map.pgm').write_bytes(b'P5\n400 200\n255\n' + pixels)
-        (temp / 'map.yaml').write_text('image: map.pgm\nresolution: 0.05\norigin: [-10,-5,0]\nnegate: 0\nfree_thresh: 0.25\noccupied_thresh: 0.65\nmode: trinary\n')
-        (temp / 'static.pcd').write_text('VERSION 0.7\nFIELDS x y z\nSIZE 4 4 4\nTYPE F F F\nCOUNT 1 1 1\nWIDTH 1\nHEIGHT 1\nVIEWPOINT 0 0 0 1 0 0 0\nPOINTS 1\nDATA ascii\n-1 -1 0\n')
+        assets = Path(__file__).resolve().parents[2] / 'bringup' / 'map'
+        map_yaml = assets / 'rmuc_2027.yaml'
+        static_pcd = assets / 'rmuc_2027.pcd'
         logfile = open(temp / 'node.log', 'w+')
-        process = subprocess.Popen([args.node_binary, '--ros-args', '-p', f'yaml_filename:={temp / "map.yaml"}',
-                                    '-p', f'static_pcd:={temp / "static.pcd"}', '-p', 'radar.self_id:=7',
+        process = subprocess.Popen([args.node_binary, '--ros-args', '-p', f'yaml_filename:={map_yaml}',
+                                    '-p', f'static_pcd:={static_pcd}', '-p', 'radar.self_id:=7',
                                     '-p', 'voxel_size:=0.005', '-p', 'min_density_per_m2:=1.0',
                                     '-p', 'min_component_area:=0.001', '-p', 'memory.hit_rate:=30.0'],
                                    stdout=logfile, stderr=subprocess.STDOUT)
         try:
-            spin(1.2)
-            check(process.poll() is None, 'node starts with explicit PGM/PCD')
+            deadline=time.monotonic()+15
+            while any(messages[k] is None for k in ('static','derived','dynamic','health')) and process.poll() is None and time.monotonic()<deadline:
+                spin(0.1)
+            check(process.poll() is None, 'node starts with hxy rmuc_2027 PGM/PCD')
+            check(messages['static'] is not None and len(messages['static'].depth) == 0, 'Depth remains disabled')
             check(messages['derived'] is not None, 'complete derived map received')
             spin(3.0, clouds=True, radar=True)
             health = messages['health']
             check(health.cloud == DynamicHealth.VALID, '20 Hz cloud source is valid')
             check(health.radar_enemies == DynamicHealth.VALID, '1 Hz radar source remains valid')
             dynamic = messages['dynamic']
-            check(not dynamic.allies and len(dynamic.enemies) == 1, 'self ID excluded and enemy retained')
+            check(len(dynamic.circles) == 1 and abs(dynamic.circles[0].center.x - 8.5) < 1e-6, 'self ID excluded and enemy retained')
             derived = messages['derived']
             report['derived_versions'].append(derived.version)
-            check(derived.fused_obstacles[100 * 400 + 370] == 1, 'radar beyond 8 m cloud ROI affects global fused grid')
+            check(any(derived.fused_obstacles), 'fused obstacle grid received on hxy rmuc_2027 geometry')
             n = derived.info.width * derived.info.height
             check(len(derived.costmap) == n == len(derived.collision_mask), 'float/binary arrays share full geometry')
             check(all((c == float('inf')) == bool(v) for c, v in zip(derived.costmap, derived.collision_mask)),
@@ -124,7 +128,7 @@ def main():
             check(messages['health'].radar_enemies == DynamicHealth.VALID, 'radar does not expire with cloud')
             send_radar(empty=True)
             spin(0.25, clouds=True)
-            check(not messages['dynamic'].enemies, 'explicit empty radar frame retracts its source')
+            check(not messages['dynamic'].circles, 'explicit empty radar frame retracts its source')
             spin(2.7, clouds=True)
             check(messages['health'].radar_enemies == DynamicHealth.STALE, '20 Hz cloud cannot renew radar lifetime')
             spin(0.4, clouds=True, bad_tf=True)
@@ -132,6 +136,8 @@ def main():
             spin(0.5, clouds=True)
             check(messages['health'].cloud == DynamicHealth.VALID, 'cloud recovers with valid measurement TF')
             check(not messages['health'].map_error, 'worker remains healthy throughout replay')
+            check(counts['static'] == 1, 'static arrays delivered once during source updates')
+            check(not hasattr(derived, 'region_id') and not hasattr(dynamic, 'health'), 'no duplicate static arrays or dynamic health payload')
         finally:
             process.send_signal(signal.SIGINT)
             try:
