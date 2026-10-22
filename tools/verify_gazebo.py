@@ -9,6 +9,8 @@ from geometry_msgs.msg import PoseStamped, Twist
 from map_server.msg import DerivedMap, DynamicObstacles, MapStatus, StaticMap
 from nav_msgs.msg import Odometry, Path
 from rclpy.parameter import Parameter
+from rclpy.parameter_client import AsyncParameterClient
+from pathlib import Path as FilePath
 from rclpy.qos import (
     DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data,
 )
@@ -21,6 +23,8 @@ def main():
     parser.add_argument('--report', default='gazebo-validation.json')
     parser.add_argument('--distance', type=float, default=1.2, help='Requested goal displacement in metres')
     parser.add_argument('--require-turn', action='store_true', help='Choose a connected endpoint whose straight line is blocked')
+    parser.add_argument('--map-yaml', default='rmuc_2026.yaml', help='Expected active map basename')
+    parser.add_argument('--robot-radius', type=float, default=0.3, help='Expected server/client robot radius')
     args = parser.parse_args()
     rclpy.init()
     node = rclpy.create_node('gazebo_nav_validation', parameter_overrides=[
@@ -31,7 +35,7 @@ def main():
     messages, counts, nonzero, poses = {}, {}, [], []
     cross_errors = []
     path_stats = dict(goal_sent=False, received_valid=False, empty_after_valid=0, valid_updates=0)
-    report = {'source': 'real hxy Gazebo rmuc_2027', 'passed': False, 'checks': []}
+    report = {'source': 'real hxy Gazebo (world/map checked separately)', 'passed': False, 'checks': []}
 
     def receive(key, message):
         messages[key] = message
@@ -103,6 +107,23 @@ def main():
                 and not status.health.map_error)
 
     try:
+        server_parameters = AsyncParameterClient(node, '/map_server')
+        client_parameters = AsyncParameterClient(node, '/map_client')
+        check(server_parameters.wait_for_services(timeout_sec=5), 'MapServer parameters available')
+        check(client_parameters.wait_for_services(timeout_sec=5), 'MapClient parameters available')
+        future = server_parameters.get_parameters(['yaml_filename', 'static_pcd', 'robot_radius'])
+        rclpy.spin_until_future_complete(node, future, timeout_sec=5)
+        check(future.done() and future.result() is not None, 'MapServer parameters received')
+        active = future.result().values
+        future = client_parameters.get_parameters(['robot_radius'])
+        rclpy.spin_until_future_complete(node, future, timeout_sec=5)
+        check(future.done() and future.result() is not None, 'MapClient parameters received')
+        client_radius = future.result().values[0].double_value
+        report.update(map_yaml=active[0].string_value, static_pcd=active[1].string_value,
+                      robot_radius_m=active[2].double_value, client_robot_radius_m=client_radius)
+        check(FilePath(active[0].string_value).name == args.map_yaml, 'requested map is actually active')
+        check(abs(active[2].double_value - args.robot_radius) < 1e-9 and
+              abs(client_radius - args.robot_radius) < 1e-9, 'server/client radius matches requested geometry')
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline and not ready():
             spin(0.1)

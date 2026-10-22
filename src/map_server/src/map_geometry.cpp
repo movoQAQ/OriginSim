@@ -7,7 +7,7 @@ declareMapSettings(rclcpp::Node& node)
   MapSettings s;
   s.global_frame = node.declare_parameter("global_frame", std::string("map"));
   s.robot_base_frame = node.declare_parameter("robot_base_frame", std::string("base_link_fake"));
-  s.robot_radius = node.declare_parameter("robot_radius", 0.43);
+  s.robot_radius = node.declare_parameter("robot_radius", 0.3);
   if (s.global_frame != "map" || s.robot_base_frame.empty() || !std::isfinite(s.robot_radius) ||
       s.robot_radius <= 0)
     throw std::invalid_argument("Map clients require map frame and positive robot radius");

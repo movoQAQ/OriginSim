@@ -59,6 +59,17 @@ if(BUILD_TESTING)
     ${CMAKE_CURRENT_SOURCE_DIR}/../navigation/topology_global_planner/include)
   target_link_libraries(test_map_server PRIVATE map_server_core GTest::gtest_main ${OpenCV_LIBS})
   add_test(NAME map_server_contracts COMMAND test_map_server)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../bringup/map/rmuc_2026.pgm")
+    add_executable(test_rmuc2026 test/test_rmuc2026.cpp)
+    target_include_directories(test_rmuc2026 PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/../navigation/topology_global_planner/include)
+    target_compile_definitions(test_rmuc2026 PRIVATE
+      RMUC2026_BRINGUP="${CMAKE_CURRENT_SOURCE_DIR}/../bringup"
+      RMUC2026_SERVER_PARAMS="${CMAKE_CURRENT_SOURCE_DIR}/config/map_server.yaml"
+      RMUC2026_REPORT="${CMAKE_CURRENT_BINARY_DIR}/rmuc2026_costs.json")
+    target_link_libraries(test_rmuc2026 PRIVATE map_server_core GTest::gtest_main yaml-cpp)
+    add_test(NAME rmuc2026_map_costs COMMAND test_rmuc2026)
+  endif()
   if(NOT MAP_SERVER_CORE_ONLY)
     add_executable(test_ros_adapters test/test_ros_adapters.cpp)
     target_link_libraries(test_ros_adapters PRIVATE map_server_ros GTest::gtest_main)

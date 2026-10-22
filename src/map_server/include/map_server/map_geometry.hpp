@@ -8,7 +8,7 @@ struct MapSettings
 {
   std::string global_frame{ "map" }, robot_base_frame;
   Footprint footprint;
-  double robot_radius{ 0.43 };
+  double robot_radius{ 0.3 };
 };
 MapSettings
 declareMapSettings(rclcpp::Node& node);

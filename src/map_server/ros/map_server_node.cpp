@@ -58,11 +58,11 @@ class MapServerNode : public rclcpp::Node {
 public:
   MapServerNode() : Node("map_server"), tf_(get_clock()), listener_(tf_) {
     MapServerConfig c;
-    c.cost.robot_radius = declare_parameter("robot_radius", 0.43);
+    c.cost.robot_radius = declare_parameter("robot_radius", 0.3);
     c.cost.safety_margin = declare_parameter("safety_margin", 0.05);
-    c.cost.soft_radius = declare_parameter("soft_radius", 1.5);
-    c.cost.alpha = declare_parameter("alpha", 1.0);
-    c.cost.beta = declare_parameter("beta", 0.1);
+    c.cost.soft_radius = declare_parameter("soft_radius", 0.8);
+    c.cost.alpha = declare_parameter("alpha", 0.7);
+    c.cost.beta = declare_parameter("beta", 0.15);
     c.cost.tdt_unbounded_inverse_distance =
         declare_parameter("tdt_unbounded_inverse_distance", false);
     c.update_frequency = declare_parameter("update_frequency", 20.0);
@@ -135,6 +135,12 @@ public:
     if (!server_->loadStaticMap(files))
       throw std::runtime_error(server_->lastError());
     static_ = server_->getStaticMap();
+    const double collision_distance = c.cost.robot_radius + c.cost.safety_margin +
+        static_->geometry.resolution * std::sqrt(0.5);
+    visual_cost_span_ = std::max(0.0, c.cost.alpha *
+        (1.0 / (c.cost.beta + collision_distance) -
+         (c.cost.tdt_unbounded_inverse_distance ? 0.0 :
+          1.0 / (c.cost.beta + c.cost.soft_radius))));
     if (files.static_pcd.empty())
       RCLCPP_WARN(get_logger(), "static_pcd is unset: cloud source "
                                 "unavailable; no fallback localization-package "
@@ -328,8 +334,13 @@ private:
     nav_msgs::msg::OccupancyGrid grid;
     grid.header.frame_id="map";grid.header.stamp=now();grid.info=metadata(maps->geometry);
     grid.data.reserve(maps->geometry.size());
-    for(float distance:maps->distance_field.data)
-      grid.data.push_back(static_cast<int8_t>(std::lround(std::clamp(distance/3.0f,0.0f,1.0f)*100)));
+    // Normalize the finite soft band by its value at the collision boundary.
+    // This restores all four original colors instead of collapsing the tuned
+    // low finite costs into the blue end. Raw float planner data is unchanged.
+    for (float cost : maps->costmap.data)
+      grid.data.push_back(!std::isfinite(cost) ? 0 : static_cast<int8_t>(
+          std::lround(100.0 * (visual_cost_span_ > 0.0 ?
+              std::clamp(1.0 - (cost - 1.0) / visual_cost_span_, 0.0, 1.0) : 1.0))));
     esdf_pub_->publish(std::move(grid));
     visualized_ = maps->version;
   }
@@ -362,6 +373,7 @@ private:
   std::string robot_;
   size_t max_points_;
   double tf_wait_;
+  double visual_cost_span_{0};
   double latest_received_{0}, pending_received_{0}, last_time_{0};
   int64_t last_cloud_stamp_{-1};
   uint64_t published_{0};

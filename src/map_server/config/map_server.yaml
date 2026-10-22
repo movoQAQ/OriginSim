@@ -3,11 +3,12 @@ map_server:
   ros__parameters:
     use_sim_time: true
     robot_base_frame: base_link_fake
-    robot_radius: 0.43
+    robot_radius: 0.3
     safety_margin: 0.05
-    soft_radius: 1.5
-    alpha: 1.0
-    beta: 0.1
+    # Tuned against bringup/map/rmuc_2026.pgm; operator-specified 0.30 m robot.
+    soft_radius: 0.8
+    alpha: 0.7
+    beta: 0.15
     tdt_unbounded_inverse_distance: false
     update_frequency: 20.0
     yaml_filename: ''
@@ -61,7 +62,7 @@ map_client:
   ros__parameters:
     global_frame: map
     robot_base_frame: base_link_fake
-    robot_radius: 0.43
+    robot_radius: 0.3
     require_cloud: true
     require_radar: false
     map_timeout: 1.0

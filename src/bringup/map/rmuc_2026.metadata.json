@@ -1,0 +1,32 @@
+{
+  "frame": "map (Gazebo world)",
+  "source": "static SDF collision surfaces",
+  "sources_sha256": {
+    "gazebo/src/rmu_gazebo_simulator/resource/worlds/rmuc_2026_world.sdf": "9d0d6fe7555691bf3429be9ac406662182ebf581f32bf7614878039af01a4571",
+    "/home/lyu/hxy/gazebo/src/rmu_gazebo_simulator/resource/models/rmuc_2026/model.sdf": "026c5ec8bd9fee5fec3f08195381a9368fb01015ddd1dcb1f08a6ad73d3fa087",
+    "/home/lyu/hxy/gazebo/src/rmu_gazebo_simulator/resource/models/rmuc_2026/meshes/rmuc_2026.stl": "08758108cc78bf64ecc822533a2074ec120287e0eea7bad64188633d92d36daa",
+    "/home/lyu/hxy/gazebo/src/rmu_gazebo_simulator/resource/models/speed_bump/model.sdf": "4c4b503b4ae649e6f1b2d16be7c1c8c9014448a94f4544c4e711b881419d93a1",
+    "/home/lyu/hxy/gazebo/src/rmu_gazebo_simulator/resource/models/speed_bump/meshes/speed_bump.stl": "96eb1caeefe2b62753a70f78acde253580886a663450fd8425ccb0e52342dedf"
+  },
+  "spacing_m": 0.04,
+  "seed": 2026,
+  "z_range_m": [
+    -0.1,
+    4.0
+  ],
+  "points": 1364092,
+  "bounds_m": [
+    [
+      -0.12999999523162842,
+      -0.07999999821186066,
+      3.002929016560074e-10
+    ],
+    [
+      29.1299991607666,
+      16.079999923706055,
+      3.9999842643737793
+    ]
+  ],
+  "pcd_sha256": "4180f074d4d7916d5eaa66ef9f9a02f83223c9c053bd2582666f24dc1c58343a",
+  "modifies_occupancy_map": false
+}

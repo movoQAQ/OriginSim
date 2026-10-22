@@ -1,0 +1,15 @@
+{
+  "map": "rmuc_2026.pgm",
+  "resolution_m": 0.05,
+  "robot_radius_m": 0.3,
+  "safety_margin_m": 0.05,
+  "soft_radius_m": 0.8,
+  "alpha": 0.7,
+  "beta_m": 0.15,
+  "finite_cells": 84351,
+  "old_unit_cost_cells": 4666,
+  "new_unit_cost_cells": 39847,
+  "median_safe_center_distance_m": 0.75,
+  "maximum_finite_cost": 1.55823,
+  "collision_mask_changed": false
+}

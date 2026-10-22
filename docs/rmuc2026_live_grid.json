@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "map": "/home/lyu/hxy/nav/install/bringup/share/bringup/map/rmuc_2026.yaml",
+  "robot_radius_m": 0.3,
+  "soft_radius": 0.8,
+  "alpha": 0.7,
+  "beta": 0.15,
+  "depth_enabled": false,
+  "static_pcd": "/home/lyu/hxy/nav/install/bringup/share/bringup/map/rmuc_2026.pcd",
+  "cells_compared": 174900,
+  "finite_cells": 84351,
+  "unit_cost_light_blue_cells": 39847,
+  "hard_collision_cells": 90549,
+  "maximum_finite_cost": 1.5582250356674194,
+  "grid_matches_planner_potential": true
+}

@@ -4,7 +4,7 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, LogInfo
 from launch.substitutions import LaunchConfiguration
 from launch.conditions import IfCondition
 from launch.actions import IncludeLaunchDescription
@@ -74,9 +74,11 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('rviz', default_value='true'),
-        DeclareLaunchArgument('map', default_value=os.path.join(bringup_dir, 'map', 'rmuc_2027.yaml')),
-        DeclareLaunchArgument('static_pcd', default_value=os.path.join(bringup_dir, 'map', 'rmuc_2027.pcd')),
+        DeclareLaunchArgument('map', default_value=os.path.join(bringup_dir, 'map', 'rmuc_2026.yaml')),
+        DeclareLaunchArgument('static_pcd', default_value=os.path.join(bringup_dir, 'map', 'rmuc_2026.pcd')),
         DeclareLaunchArgument('region_yaml', default_value=''),
+        LogInfo(msg=['Occupancy map: ', LaunchConfiguration('map')]),
+        LogInfo(msg=['Static reference PCD: ', LaunchConfiguration('static_pcd')]),
         pointlio,
         container,
         modify,

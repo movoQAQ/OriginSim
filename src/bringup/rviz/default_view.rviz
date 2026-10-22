@@ -177,7 +177,7 @@ Visualization Manager:
       Value: /TopoPlanner/connector_debug_markers
     Value: true
   - Class: esdf_rviz_plugin/Heatmap
-    Name: ESDF grid heatmap (0-3 m)
+    Name: ESDF cost grid (light blue-green-yellow-red)
     Enabled: true
     Value: true
     Alpha: 0.85
@@ -190,7 +190,7 @@ Visualization Manager:
       Reliability Policy: Reliable
       History Policy: Keep Last
     Update Topic:
-      Value: ''
+      Value: /map_server/esdf_grid_updates
     Use Timestamp: false
   - Alpha: 1
     Buffer Length: 1

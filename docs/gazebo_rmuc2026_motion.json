@@ -1,0 +1,121 @@
+{
+  "source": "real hxy Gazebo (world/map checked separately)",
+  "passed": true,
+  "checks": [
+    "MapServer parameters available",
+    "MapClient parameters available",
+    "MapServer parameters received",
+    "MapClient parameters received",
+    "requested map is actually active",
+    "server/client radius matches requested geometry",
+    "real cloud, odometry, TF and coherent map channels ready",
+    "Depth empty",
+    "robot starts in traversable map cell",
+    "positive finite goal distance",
+    "connected traversable goal available",
+    "Gazebo truth endpoint sampled",
+    "path and nonzero chassis commands received",
+    "Gazebo robot moved over 0.5 m",
+    "parked robot within 0.35 m of goal",
+    "active path never cleared after planning succeeded"
+  ],
+  "map_yaml": "/home/lyu/hxy/nav/install/bringup/share/bringup/map/rmuc_2026.yaml",
+  "static_pcd": "/home/lyu/hxy/nav/install/bringup/share/bringup/map/rmuc_2026.pcd",
+  "robot_radius_m": 0.3,
+  "client_robot_radius_m": 0.3,
+  "start": [
+    9.872793441058056,
+    3.646133070124592
+  ],
+  "truth_start": [
+    9.875112725563058,
+    3.481718763753091
+  ],
+  "goal": [
+    15.875000236555934,
+    3.6250000540167093
+  ],
+  "final": [
+    15.95099173396231,
+    3.666572448254154
+  ],
+  "truth_final": [
+    15.949701877086696,
+    3.661089693451556
+  ],
+  "final_goal_error_m": 0.08661969545488345,
+  "minimum_goal_error_m": 0.15211012817527772,
+  "truth_displacement_m": 6.077236813736121,
+  "distance_moved": 6.078232658926648,
+  "nonzero_commands": 536,
+  "plan_points": 886,
+  "original_points": 166,
+  "smoothed_points": 886,
+  "counts": {
+    "status": 257,
+    "plan": 5,
+    "original": 4,
+    "smoothed": 4,
+    "odom": 110,
+    "cloud": 111,
+    "cmd": 647,
+    "truth": 2,
+    "static": 1,
+    "derived": 1,
+    "dynamic": 91
+  },
+  "pose_samples": [
+    [
+      9.90888979532363,
+      3.4559964785151323
+    ],
+    [
+      9.823840154784104,
+      2.3441993387879707
+    ],
+    [
+      9.822149207162546,
+      1.2380058247562626
+    ],
+    [
+      10.109677166094322,
+      0.8234298703485443
+    ],
+    [
+      10.711611363378784,
+      0.6267554283643939
+    ],
+    [
+      11.42855312602846,
+      0.6376605795746428
+    ],
+    [
+      11.58535284150728,
+      1.2129295677107557
+    ],
+    [
+      12.371501560794309,
+      1.8405253273283897
+    ],
+    [
+      13.407084983010389,
+      2.6531613188238925
+    ],
+    [
+      14.290849887820247,
+      3.2966320300370837
+    ],
+    [
+      15.344349404752261,
+      3.5071094351981182
+    ]
+  ],
+  "path_stability": {
+    "goal_sent": true,
+    "received_valid": true,
+    "empty_after_valid": 0,
+    "valid_updates": 2
+  },
+  "max_cross_track_error_m": 0.4007107438537509,
+  "rms_cross_track_error_m": 0.145909783569484
+}

@@ -1,20 +1,23 @@
 {
   "resolution_m": 0.05,
-  "robot_radius_m": 0.43,
+  "robot_radius_m": 0.3,
   "safety_margin_m": 0.05,
-  "raster_margin_m": 0.03535533905932738,
+  "raster_margin_m": 0.035355339059327376,
+  "hard_threshold_m": 0.38535533905932734,
   "tunnels": [
     {
       "name": "upper",
       "free_width_m": 0.85,
       "max_center_distance_m": 0.45,
-      "hard_blocked": true
+      "hard_blocked": false,
+      "confined_yastar_path_verified": true
     },
     {
       "name": "lower",
       "free_width_m": 0.85,
       "max_center_distance_m": 0.45,
-      "hard_blocked": true
+      "hard_blocked": false,
+      "confined_yastar_path_verified": true
     }
   ]
 }
