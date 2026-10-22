@@ -81,7 +81,7 @@ MapClient::MapClient(const std::string &name,
           if (!m->depth.empty())
             map->depth = Grid<float>{g, std::move(m->depth)};
           std::lock_guard<std::mutex> lock(mutex_);
-          auto next = std::make_shared<MapView>(*state_);
+          auto next = std::make_shared<MapView>(*assembly_);
           if (next->static_ && next->static_producer_ == m->producer_id) {
             const auto &old = *next->static_;
             if (!(old.geometry == map->geometry) ||
@@ -94,13 +94,15 @@ MapClient::MapClient(const std::string &name,
               throw std::invalid_argument(
                   "Static map cannot change within a producer instance");
             next->error_mask_ &= ~1;
-            state_ = next;
+            assembly_ = next;
+            publishLocked();
             return;
           }
           next->static_ = std::move(map);
           next->static_producer_ = m->producer_id;
           next->error_mask_ &= ~1;
-          state_ = next;
+          assembly_ = next;
+          publishLocked();
         } catch (const std::exception &e) {
           reject(1, e);
         }
@@ -144,14 +146,15 @@ MapClient::MapClient(const std::string &name,
           map->costmap_ms = m->costmap_ms;
           map->cloud_ms = m->cloud_ms;
           std::lock_guard<std::mutex> lock(mutex_);
-          auto next = std::make_shared<MapView>(*state_);
+          auto next = std::make_shared<MapView>(*assembly_);
           if (next->derived_ && next->derived_producer_ == m->producer_id &&
               next->derived_->version >= m->version && !(next->error_mask_ & 2))
             return;
           next->derived_ = std::move(map);
           next->derived_producer_ = m->producer_id;
           next->error_mask_ &= ~2;
-          state_ = next;
+          assembly_ = next;
+          publishLocked();
         } catch (const std::exception &e) {
           reject(2, e);
         }
@@ -182,7 +185,7 @@ MapClient::MapClient(const std::string &name,
           }
           const auto stamp = rclcpp::Time(m->header.stamp).seconds();
           std::lock_guard<std::mutex> lock(mutex_);
-          auto next = std::make_shared<MapView>(*state_);
+          auto next = std::make_shared<MapView>(*assembly_);
           if (next->dynamic_ && next->dynamic_producer_ == m->producer_id &&
               m->version <= next->dynamic_version_ && !(next->error_mask_ & 4))
             return;
@@ -191,7 +194,8 @@ MapClient::MapClient(const std::string &name,
           next->dynamic_version_ = m->version;
           next->dynamic_stamp_s_ = stamp;
           next->error_mask_ &= ~4;
-          state_ = next;
+          assembly_ = next;
+          publishLocked();
         } catch (const std::exception &e) {
           reject(4, e);
         }
@@ -209,21 +213,63 @@ MapClient::MapClient(const std::string &name,
               now().seconds() - status.stamp_s > policy_.timeout_s)
             throw std::invalid_argument("Stale map heartbeat");
           std::lock_guard<std::mutex> lock(mutex_);
-          auto next = std::make_shared<MapView>(*state_);
+          auto next = std::make_shared<MapView>(*assembly_);
           if (next->status_.producer_id == status.producer_id &&
               status.stamp_s < next->status_.stamp_s)
             return;
           next->status_ = status;
           next->error_mask_ &= ~8;
-          state_ = next;
+          assembly_ = next;
+          publishLocked();
         } catch (const std::exception &e) {
           reject(8, e);
         }
       });
 }
+// Assemble independently delivered buffers using the producer's published
+// watermarks. Only shared pointers are staged. Readers retain immutable,
+// acknowledged buffers.
+void MapClient::publishLocked() {
+  const auto &p = *assembly_;
+  const bool same = p.static_ && p.derived_ && p.dynamic_ &&
+                    p.static_producer_ == p.derived_producer_ &&
+                    p.static_producer_ == p.dynamic_producer_ &&
+                    p.static_producer_ == p.status_.producer_id;
+  if (!same || p.error_mask_) {
+    state_ = std::make_shared<MapView>(p);
+    return;
+  }
+  const bool failed = p.status_.health.map_error ||
+                      (policy_.require_cloud &&
+                       p.status_.health.cloud != SourceStatus::VALID) ||
+                      (policy_.require_radar &&
+                       (p.status_.health.radar_allies != SourceStatus::VALID ||
+                        p.status_.health.radar_enemies != SourceStatus::VALID ||
+                        !p.status_.health.self_filter_verified));
+  if (!failed && (p.status_.derived_version < p.version() ||
+                  p.status_.dynamic_version < p.dynamic_version_))
+    return;
+  auto next = std::make_shared<MapView>(p);
+  const double steady = steadySeconds();
+  const bool previous = state_->status_.producer_id == p.status_.producer_id;
+  const auto waiting = [&](uint64_t advertised, uint64_t received,
+                           uint64_t old_received, double since) {
+    if (advertised <= received)
+      return 0.0;
+    return !previous || received > old_received || since == 0 ? steady : since;
+  };
+  next->derived_wait_since_ =
+      waiting(p.status_.derived_version, p.version(), state_->version(),
+              state_->derived_wait_since_);
+  next->dynamic_wait_since_ =
+      waiting(p.status_.dynamic_version, p.dynamic_version_,
+              state_->dynamic_version_, state_->dynamic_wait_since_);
+  state_ = std::move(next);
+}
 void MapClient::reject(uint8_t layer, const std::exception &error) {
   {
     std::lock_guard<std::mutex> lock(mutex_);
+    assembly_->error_mask_ |= layer;
     auto next = std::make_shared<MapView>(*state_);
     next->error_mask_ |= layer;
     state_ = next;

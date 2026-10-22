@@ -151,7 +151,8 @@ bool MpcSolver::buildCondensedQP(const State & curr,
   Eigen::MatrixXd Q_bar = Eigen::MatrixXd::Zero(nX, nX);
   Eigen::MatrixXd R_bar = Eigen::MatrixXd::Zero(nU, nU);
   for (int i = 0; i < N; ++i) {
-    const double yaw_ref = ref_traj[i].yaw;
+    const double yaw_ref = ref_traj[i].vel.squaredNorm()>1e-10 ?
+      std::atan2(ref_traj[i].vel.y(),ref_traj[i].vel.x()):ref_traj[i].yaw;
     const double c = std::cos(yaw_ref);
     const double s = std::sin(yaw_ref);
     // Q_xy = R^T * diag(q_along, q_cross) * R  (R is 2D rotation by yaw_ref)
@@ -367,8 +368,9 @@ bool MpcSolver::solve(const State & curr,
           }
           costs.push_back(cost);
           const Eigen::Vector2d error = cost.position - ref.pos;
-          const double along = std::cos(ref.yaw) * error.x() + std::sin(ref.yaw) * error.y();
-          const double cross = -std::sin(ref.yaw) * error.x() + std::cos(ref.yaw) * error.y();
+          const double tangent=ref.vel.squaredNorm()>1e-10 ? std::atan2(ref.vel.y(),ref.vel.x()):ref.yaw;
+          const double along = std::cos(tangent) * error.x() + std::sin(tangent) * error.y();
+          const double cross = -std::sin(tangent) * error.x() + std::cos(tangent) * error.y();
           const Eigen::Vector3d du(state.vx - ref.vel.x(), state.vy - ref.vel.y(),
             state.omega - ref.yaw_rate);
           const auto & prior = prediction[i];

@@ -124,9 +124,11 @@ TEST_F(MapClientTest,
   heartbeat(22, 2);
   ASSERT_TRUE(
       wait([&] { return client->view()->status().derived_version == 2; }));
-  EXPECT_FALSE(client->isCurrent());
-  heartbeat(22, 1);
-  ASSERT_TRUE(wait([&] { return client->isCurrent(); }));
+  EXPECT_TRUE(client->isCurrent());
+  data(22, 2, false);
+  heartbeat(22, 2);
+  ASSERT_TRUE(wait(
+      [&] { return client->isCurrent() && client->view()->version() == 2; }));
 }
 TEST_F(MapClientTest,
        RetainedViewIsImmutableAndStaticStorageIsSharedAcrossUpdates) {
@@ -255,6 +257,57 @@ TEST_F(MapClientTest, SourceProgressAdvancesWithoutRepublishingGeometry) {
   EXPECT_EQ(held->derivedMaps(), next->derivedMaps());
   EXPECT_EQ(held->dynamicObstacles(), next->dynamicObstacles());
   EXPECT_EQ(held->dynamicStampNs(), next->dynamicStampNs());
+}
+
+TEST_F(MapClientTest, DataBeforeHeartbeatKeepsAcknowledgedViewUsable) {
+  data(1, 1);
+  heartbeat(1, 1);
+  ASSERT_TRUE(wait([&] { return client->isCurrent(); }));
+  const auto held = client->view();
+  data(1, 2, false);
+  for (int i = 0; i < 30; ++i) {
+    executor.spin_some();
+    EXPECT_TRUE(client->isCurrent());
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  }
+  EXPECT_EQ(client->view()->version(), 1u);
+  heartbeat(1, 2);
+  ASSERT_TRUE(wait(
+      [&] { return client->isCurrent() && client->view()->version() == 2; }));
+  EXPECT_EQ(held->version(), 1u);
+}
+TEST_F(MapClientTest, HeartbeatBeforeBuffersNeverCreatesTransientInvalidation) {
+  data(1, 1);
+  heartbeat(1, 1);
+  ASSERT_TRUE(wait([&] { return client->isCurrent(); }));
+  for (uint64_t version = 2; version < 25; ++version) {
+    heartbeat(1, version);
+    ASSERT_TRUE(wait(
+        [&] { return client->view()->status().derived_version == version; }));
+    ASSERT_TRUE(client->isCurrent());
+    data(1, version, false);
+    ASSERT_TRUE(wait([&] { return client->view()->version() == version; }));
+    ASSERT_TRUE(client->isCurrent());
+  }
+}
+TEST_F(MapClientTest, MissingBuffersExpireDespiteFreshHeartbeatsAndRecover) {
+  data(1, 1);
+  heartbeat(1, 1);
+  ASSERT_TRUE(wait([&] { return client->isCurrent(); }));
+  const auto old = client->view()->derivedMaps();
+  const auto end =
+      std::chrono::steady_clock::now() + std::chrono::milliseconds(1150);
+  while (std::chrono::steady_clock::now() < end) {
+    heartbeat(1, 2);
+    executor.spin_some();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  EXPECT_FALSE(client->isCurrent());
+  EXPECT_EQ(client->view()->derivedMaps(), old);
+  data(1, 2, false);
+  heartbeat(1, 2);
+  ASSERT_TRUE(wait(
+      [&] { return client->isCurrent() && client->view()->version() == 2; }));
 }
 
 } // namespace

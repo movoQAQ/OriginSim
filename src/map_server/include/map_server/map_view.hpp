@@ -33,12 +33,16 @@ public:
                const MapPolicy &policy) const {
     if (!ready() || !dynamic_ || status_.producer_id != static_producer_ ||
         dynamic_producer_ != static_producer_ ||
-        status_.derived_version != derived_->version ||
-        status_.dynamic_version != dynamic_version_ ||
+        status_.derived_version < derived_->version ||
+        status_.dynamic_version < dynamic_version_ ||
         status_.health.map_error || ros_now < status_.stamp_s - 0.1 ||
         ros_now - status_.stamp_s > policy.timeout_s ||
         steady_now < status_.received_steady_s ||
-        steady_now - status_.received_steady_s > policy.timeout_s)
+        steady_now - status_.received_steady_s > policy.timeout_s ||
+        (derived_wait_since_ > 0 &&
+         steady_now - derived_wait_since_ > policy.timeout_s) ||
+        (dynamic_wait_since_ > 0 &&
+         steady_now - dynamic_wait_since_ > policy.timeout_s))
       return false;
     return (!policy.require_cloud ||
             status_.health.cloud == SourceStatus::VALID) &&
@@ -166,6 +170,7 @@ private:
   uint64_t static_producer_{0}, derived_producer_{0}, dynamic_producer_{0},
       dynamic_version_{0};
   double dynamic_stamp_s_{0};
+  double derived_wait_since_{0}, dynamic_wait_since_{0};
   uint8_t error_mask_{0};
 };
 } // namespace map_server

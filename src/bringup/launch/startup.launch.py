@@ -59,7 +59,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(os.path.join(
             get_package_share_directory('map_server'), 'launch', 'map_server.launch.py')),
         launch_arguments={
-            'map': os.path.join(bringup_dir, 'map', 'rmuc_2027.yaml'),
+            'map': LaunchConfiguration('map'),
             'use_sim_time': 'true',
             'params_file': params_file,
             'static_pcd': LaunchConfiguration('static_pcd'),
@@ -74,6 +74,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('rviz', default_value='true'),
+        DeclareLaunchArgument('map', default_value=os.path.join(bringup_dir, 'map', 'rmuc_2027.yaml')),
         DeclareLaunchArgument('static_pcd', default_value=os.path.join(bringup_dir, 'map', 'rmuc_2027.pcd')),
         DeclareLaunchArgument('region_yaml', default_value=''),
         pointlio,

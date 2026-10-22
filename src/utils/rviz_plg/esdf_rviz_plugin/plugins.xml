@@ -1,0 +1,1 @@
+<library path="esdf_rviz_plugin"><class name="esdf_rviz_plugin/Heatmap" type="esdf_rviz_plugin::Heatmap" base_class_type="rviz_common::Display"><description>Textured distance grid: red 0 m, blue 3 m and beyond.</description></class></library>

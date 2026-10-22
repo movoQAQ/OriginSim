@@ -29,6 +29,7 @@ public:
 
 private:
   void reject(uint8_t layer, const std::exception &error);
+  void publishLocked();
   MapSettings settings_;
   MapPolicy policy_;
   double transform_tolerance_;
@@ -36,6 +37,7 @@ private:
   std::shared_ptr<tf2_ros::TransformListener> listener_;
   mutable std::mutex mutex_;
   std::shared_ptr<const MapView> state_{std::make_shared<const MapView>()};
+  std::shared_ptr<MapView> assembly_{std::make_shared<MapView>()};
   rclcpp::Subscription<msg::StaticMap>::SharedPtr static_sub_;
   rclcpp::Subscription<msg::DerivedMap>::SharedPtr derived_sub_;
   rclcpp::Subscription<msg::DynamicObstacles>::SharedPtr dynamic_sub_;

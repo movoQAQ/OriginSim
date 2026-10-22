@@ -155,6 +155,10 @@ public:
     debug_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(
         "/map_server/costmap", qos);
     map_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>("/map", qos);
+    esdf_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(
+        "/map_server/esdf_grid", qos);
+    esdf_timer_ = create_wall_timer(std::chrono::milliseconds(200),
+                                    [this] { publishEsdf(); });
     publishStatic();
     cloud_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
         declare_parameter("cloud_topic", std::string("/cloud_registered")),
@@ -211,6 +215,7 @@ private:
       last_cloud_stamp_ = -1;
       ++producer_id_;
       published_ = 0;
+      visualized_ = 0;
       dynamic_version_ = 0;
       last_dynamic_.reset();
       publishStatic();
@@ -314,6 +319,20 @@ private:
     status.worker_error = error;
     status_pub_->publish(std::move(status));
   }
+  void publishEsdf() {
+    if (esdf_pub_->get_subscription_count() == 0)
+      return;
+    const auto maps = server_->getDerivedMaps();
+    if (!maps || maps->version == visualized_)
+      return;
+    nav_msgs::msg::OccupancyGrid grid;
+    grid.header.frame_id="map";grid.header.stamp=now();grid.info=metadata(maps->geometry);
+    grid.data.reserve(maps->geometry.size());
+    for(float distance:maps->distance_field.data)
+      grid.data.push_back(static_cast<int8_t>(std::lround(std::clamp(distance/3.0f,0.0f,1.0f)*100)));
+    esdf_pub_->publish(std::move(grid));
+    visualized_ = maps->version;
+  }
   void publishStatic() {
     msg::StaticMap out;
     out.header.frame_id = "map";
@@ -359,7 +378,9 @@ private:
   rclcpp::Publisher<msg::DynamicObstacles>::SharedPtr dynamic_pub_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr debug_pub_,
       map_pub_;
-  rclcpp::TimerBase::SharedPtr timer_;
+  uint64_t visualized_{0};
+  rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr esdf_pub_;
+  rclcpp::TimerBase::SharedPtr timer_, esdf_timer_;
 };
 } // namespace map_server
 int main(int argc, char **argv) {
