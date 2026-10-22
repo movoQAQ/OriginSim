@@ -10,6 +10,7 @@ namespace minco_controller
 class PathTrajectory
 {
 public:
+  // yaw_rate also bounds travel-direction rate with fixed body yaw.
   void setPath(const std::vector<ReferencePoint> & points,
     double speed, double acceleration, double yaw_rate, bool track_yaw);
   ReferencePoint sample(double time) const;

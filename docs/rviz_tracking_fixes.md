@@ -1,6 +1,6 @@
 # 栅格热力图、地图一致性与跟踪修正（2026-10-22）
 
-- 新增 esdf_rviz_plugin/Heatmap，继承 RViz MapDisplay 纹理栅格绘制，使用用户指定的初版浅蓝/绿/黄/红色带。`/map_server/esdf_grid` 只供显示：cost=1 为浅蓝，有限软代价按碰撞边界理论值归一化，硬碰撞为红。规划读取原始浮点距离与代价。实现参考 ROS 2 RViz MapDisplay（https://github.com/ros2/rviz/blob/jazzy/rviz_default_plugins/src/rviz_default_plugins/displays/map/map_display.cpp）。
+- 新增 esdf_rviz_plugin/Heatmap，继承 RViz MapDisplay 纹理栅格绘制，使用 TDT 实际代价转图像思路与标准 JET 青蓝/绿/黄/红色带。`/map_server/esdf_grid` 只供显示：cost=1 为浅蓝，有限软代价按固定 cost=1..2 映射，硬碰撞为红。规划读取原始浮点距离与代价。实现参考 ROS 2 RViz MapDisplay（https://github.com/ros2/rviz/blob/jazzy/rviz_default_plugins/src/rviz_default_plugins/displays/map/map_display.cpp）。
 - 活动/原始路径深蓝，平滑路径紫色；Path 使用 transient-local。路径在真实失败或新目标撤销时仍会清空，不保留假的成功路径。
 - MapClient 用发布版本水位确认消息，暂存尚未被状态确认的新数组；正常跨 Topic 到达间隔不会撤销可用视图。缺失数组持续超过 map_timeout、错误健康状态、跨生产者拼接仍拒绝运动。暂存仅共享只读缓冲，不复制地图数组。
 - 当前实际启动已统一选择用户指定的 bringup/map/rmuc_2026.yaml、rmuc_2026.pcd 和 Gazebo rmuc_2026 场景，启动日志打印地图/PCD 路径，机器人半径统一为用户指定的 0.30 m。原始 PGM/YAML 保留不变。Gazebo 的 2026 STL 与原始 PGM 局部形状仍不一致，见下述专项记录。
@@ -18,8 +18,10 @@
 
 ## 验证
 
-相关功能包构建通过。地图 47 项回归和控制器 3 项几何/旋转一致性回归通过（合计 50 项）。
+相关功能包构建通过。地图 47 项回归和控制器 6 项几何/旋转一致性回归通过（合计 53 项）。
 
 历史 rmuc2027 Gazebo：6 m 目标真值位移 5.849 m，终点误差 0.142 m；必须绕障的约 4 m 目标真值位移 3.948 m，终点误差 0.092 m，最大横向偏差 0.0423 m、均方根偏差 0.0309 m。两次成功规划后活动路径清空次数均为 0，执行日志无中途停车/重新规划。
 
 RViz 已实际加载 libesdf_rviz_plugin.so，订阅栅格热力图。当前浅蓝色带、2026 PGM 与 0.30 m 半径已在运行节点核对；原图两侧槽内搜索通过。2026 仿真存在一组成功运动记录与一组失败转弯诊断，详情见 rmuc2026_esdf_tuning.md；未声称整套跟踪已经稳定。
+
+最新锐角修正、可复现物理对照及验证边界见 [tdt_visualization_acute_tracking.md](tdt_visualization_acute_tracking.md)。

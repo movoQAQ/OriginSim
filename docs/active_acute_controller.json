@@ -1,0 +1,7 @@
+{
+  "MPC.q_cross": 12.0,
+  "MPC.reference_yaw_rate": 1.0,
+  "MPC.reference_speed": 1.2,
+  "MPC.control_delay_compensation": 0.05,
+  "MPC.use_acc_constraints": false
+}

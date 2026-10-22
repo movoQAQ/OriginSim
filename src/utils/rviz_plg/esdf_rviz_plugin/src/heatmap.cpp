@@ -1,8 +1,9 @@
 // Uses the palette extension points of ROS 2 RViz MapDisplay (BSD-3-Clause).
 #include <algorithm>
 #include <atomic>
-#include <array>
+#include <cmath>
 #include <vector>
+#include <opencv2/imgproc.hpp>
 #include <OgreTextureManager.h>
 #include <OgreDataStream.h>
 #include <pluginlib/class_list_macros.hpp>
@@ -15,16 +16,17 @@ public:
  void onInitialize() override {
   MapDisplay::onInitialize();
   std::vector<unsigned char> bytes(256*4,255);
-  // Restore the first ESDF view's light-blue / green / yellow / red band.
-  const std::array<std::array<float,3>,4> colors{{
-    {{1,0,0}}, {{1,1,0}}, {{0,1,0}}, {{0.55f,0.85f,1}}
-  }};
+  // Use OpenCV's standard JET table over its cyan-to-red interval, avoiding
+  // the dark-blue tail. Grid values are actual cost image values, like TDT's
+  // getCostMapImage; TDT itself exports grayscale and does not define a LUT.
+  cv::Mat indices(256,1,CV_8UC1), bgr;
   for(int i=0;i<256;++i){
-   const float h=3*std::clamp(i/100.0f,0.0f,1.0f);
-   const int a=std::min(static_cast<int>(h),2);
-   const float fraction=h-a;
-   for(int channel=0;channel<3;++channel)
-    bytes[i*4+channel]=255*((1-fraction)*colors[a][channel]+fraction*colors[a+1][channel]);
+   indices.at<unsigned char>(i)=80+std::lround(144*std::clamp(i/100.0f,0.0f,1.0f));
+  }
+  cv::applyColorMap(indices,bgr,cv::COLORMAP_JET);
+  for(int i=0;i<256;++i){
+   const auto color=bgr.at<cv::Vec3b>(i);
+   bytes[i*4]=color[2];bytes[i*4+1]=color[1];bytes[i*4+2]=color[0];
   }
   bytes[255*4+3]=0;
   static std::atomic<unsigned> counter{0};

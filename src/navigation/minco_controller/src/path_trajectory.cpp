@@ -49,14 +49,18 @@ void PathTrajectory::setPath(const std::vector<ReferencePoint> & points,
     knot.speed = std::min(speed, std::sqrt(2.0 * acceleration *
         std::max(0.0, std::min(knot.distance, length - knot.distance))));
   }
-  // Bound lateral acceleration on bends independently of body yaw.
+  // A fixed body yaw does not remove the swerve wheels' steering limit.
+  // Bound both lateral acceleration v^2*kappa and travel-direction rate
+  // v*kappa; otherwise an acute bend has a feasible scalar speed profile
+  // but still requests an almost instantaneous wheel-heading change.
   for(size_t i=1;i+1<knots_.size();++i){
     const Eigen::Vector2d a=knots_[i].position-knots_[i-1].position;
     const Eigen::Vector2d b=knots_[i+1].position-knots_[i].position;
     if(a.norm()<1e-9||b.norm()<1e-9)continue;
     const double angle=std::acos(std::clamp(a.dot(b)/(a.norm()*b.norm()),-1.0,1.0));
     const double curvature=2*std::sin(angle/2)/std::min(a.norm(),b.norm());
-    if(curvature>1e-6)knots_[i].speed=std::min(knots_[i].speed,std::sqrt(acceleration/curvature));
+    if(curvature>1e-6)knots_[i].speed=std::min({knots_[i].speed,
+      std::sqrt(acceleration/curvature), yaw_rate/curvature});
   }
   for (size_t i = 1; i < knots_.size(); ++i) {
     auto & a = knots_[i - 1];

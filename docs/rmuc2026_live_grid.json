@@ -12,5 +12,6 @@
   "unit_cost_light_blue_cells": 39847,
   "hard_collision_cells": 90549,
   "maximum_finite_cost": 1.5582250356674194,
-  "grid_matches_planner_potential": true
+  "visualization_max_cost": 2.0,
+  "grid_matches_planner_cost_image": true
 }

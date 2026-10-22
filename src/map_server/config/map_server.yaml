@@ -9,6 +9,7 @@ map_server:
     soft_radius: 0.8
     alpha: 0.7
     beta: 0.15
+    visualization_max_cost: 2.0
     tdt_unbounded_inverse_distance: false
     update_frequency: 20.0
     yaml_filename: ''

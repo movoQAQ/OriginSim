@@ -51,4 +51,8 @@ if(BUILD_TESTING)
   add_executable(test_path_geometry test/test_path_geometry.cpp)
   target_link_libraries(test_path_geometry PRIVATE minco_mpc_solver GTest::gtest_main)
   add_test(NAME path_geometry COMMAND test_path_geometry)
+  # Manual Gazebo integration tool; intentionally not part of fast CTest runs.
+  add_executable(gazebo_tracking_probe test/gazebo_tracking_probe.cpp)
+  target_link_libraries(gazebo_tracking_probe minco_mpc_solver)
+  ament_target_dependencies(gazebo_tracking_probe rclcpp nav_msgs geometry_msgs)
 endif()

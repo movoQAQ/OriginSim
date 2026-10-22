@@ -12,7 +12,7 @@
 | `/map_server/status` / `MapStatus` | producer、已发布版本、来源健康、Worker 错误 | 20 Hz 轻量心跳 |
 | `/map` | 静态 OccupancyGrid，供 RViz 显示 | 静态地图发布时 |
 | `/map_server/costmap` | RViz 用的压缩代价图 | 有订阅者且派生版本改变 |
-| `/map_server/esdf_grid` | 浅蓝/绿/黄/红纹理栅格；有限代价归一化到软作用范围，硬碰撞 0 | 有订阅者且派生版本改变，最多 5 Hz |
+| `/map_server/esdf_grid` | TDT 思路的实际代价纹理栅格；固定 cost=1..2 映射，硬碰撞 100 | 有订阅者且派生版本改变，最多 5 Hz |
 
 雷达输入暂用 `/radar/allies` 和 `/radar/enemies` 的 `RadarTargets`；输入适配器维护来源、ID、自身过滤、有效期。下游只收到位置和有效半径，不重复传输输入目标协议。未来外部位段协议应在输入适配器解析。
 
@@ -28,7 +28,7 @@ ROS 消费端只有一个 `MapClient`，调用 `auto view = maps->view()` 捕获
 
 默认 startup 使用用户指定的 `bringup/map/rmuc_2026.yaml`（原始 PGM）和配套 `bringup/map/rmuc_2026.pcd`。hxy 的 Gazebo 配置已切至 `rmuc_2026` 场景；PCD 从该场景的静态碰撞表面采样生成，不修改原始 PGM/YAML。`depth_yaml` 保持空字符串，静态消息的 depth 数组为空，查询返回无值；不生成替代 Depth。
 
-默认软代价参数已按 `rmuc_2026.pgm` 调为 soft_radius=0.8 m、alpha=0.7、beta=0.15 m，实际执行公式为 `1+alpha×(1/(beta+d)−1/(beta+soft_radius))`，距离不小于 soft_radius 时为 1。机器人半径按用户指定统一为 0.30 m，另计 safety_margin=0.05 m 和栅格半对角线。2026 原图量测、限制及验证见 [rmuc2026_esdf_tuning.md](rmuc2026_esdf_tuning.md)。RViz `esdf_rviz_plugin/Heatmap` 保持栅格，使用初版的浅蓝→绿→黄→红色带：浅蓝为 cost=1，红为高代价/硬碰撞。软代价以碰撞阈值处的理论有限代价归一化，避免降低 alpha 后色带挤在一端。显示不参与规划。
+默认软代价参数已按 `rmuc_2026.pgm` 调为 soft_radius=0.8 m、alpha=0.7、beta=0.15 m，实际执行公式为 `1+alpha×(1/(beta+d)−1/(beta+soft_radius))`，距离不小于 soft_radius 时为 1。机器人半径按用户指定统一为 0.30 m，另计 safety_margin=0.05 m 和栅格半对角线。2026 原图量测、限制及验证见 [rmuc2026_esdf_tuning.md](rmuc2026_esdf_tuning.md)。RViz `esdf_rviz_plugin/Heatmap` 保持栅格，使用初版的浅蓝→绿→黄→红色带：浅蓝为 cost=1，红为高代价/硬碰撞。有限代价按固定 cost=1..visualization_max_cost（默认 2）映射，使用 OpenCV 标准色表，不随地图帧自动缩放。显示不参与规划。
 
 当前保存的 `topo.yaml` 区域坐标未验证与当前 rmuc_2026 对齐，因此配置显式 `use_topology: false`。先验证栅格搜索、平滑和控制；提供匹配区域/拓扑后再启用。区域图、高度图也未配置。
 
