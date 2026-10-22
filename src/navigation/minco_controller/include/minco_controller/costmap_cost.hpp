@@ -9,9 +9,8 @@
 
 namespace minco_controller
 {
-// An immutable snapshot keeps every sequential QP on the same rolling grid.
-// Gaussian averaging makes quantized inflation costs differentiable and gives
-// a useful gradient even across a narrow 253/254 plateau. Radius is 3 sigma.
+// An immutable snapshot keeps every sequential QP on one float map version.
+// Gaussian averaging regularizes the reciprocal-distance potential; radius is 3 sigma.
 class CostmapCost
 {
 public:
@@ -46,7 +45,7 @@ public:
         // Unknown cells and the exterior are high cost, never free space.
         const double cost = ix < 0 || iy < 0 || ix >= static_cast<int>(grid_.getSizeInCellsX()) ||
           iy >= static_cast<int>(grid_.getSizeInCellsY()) ? 1.0 :
-          std::min(1.0, grid_.getCost(ix, iy) / 254.0);
+          (std::isfinite(grid_.getCost(ix, iy)) ? 1.0 - 1.0 / grid_.getCost(ix, iy) : 1.0);
         const Eigen::Vector2d gradient = weight * delta / (sigma_ * sigma_);
         weights += weight;
         weighted_cost += weight * cost;
@@ -60,7 +59,7 @@ public:
     result.safety_planes.clear();
     if (collision_radius_ > 0.0) {
       // A supporting plane of cell (+) disc is conservative and linear. Use
-      // actual lethal cell squares, not the already inflated 253 band.
+      // raw fused cell squares, without expanding CollisionMask again.
       const auto add_plane = [&](const Eigen::Vector2d & normal, double offset) {
           for (auto & plane : result.safety_planes) {
             if ((plane.normal - normal).squaredNorm() < 1e-12) {
@@ -84,7 +83,7 @@ public:
           const int ix = static_cast<int>(mx) + dx, iy = static_cast<int>(my) + dy;
           if (ix < 0 || iy < 0 || ix >= static_cast<int>(grid_.getSizeInCellsX()) ||
             iy >= static_cast<int>(grid_.getSizeInCellsY()) ||
-            grid_.getCost(ix, iy) != map_server::LETHAL_OBSTACLE) {continue;}
+            !grid_.rawObstacle(ix, iy)) {continue;}
           const Eigen::Vector2d lower(grid_.getOriginX() + ix * resolution,
             grid_.getOriginY() + iy * resolution);
           const Eigen::Vector2d nearest = position.cwiseMax(lower).cwiseMin(

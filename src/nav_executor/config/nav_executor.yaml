@@ -1,3 +1,13 @@
+map_client:
+  ros__parameters:
+    global_frame: map
+    robot_base_frame: base_link_fake
+    robot_radius: 0.43
+    require_cloud: true
+    require_radar: false
+    map_timeout: 1.0
+    transform_tolerance: 0.5
+
 nav_executor:
   ros__parameters:
     use_sim_time: false
@@ -98,6 +108,4 @@ topology_planner:
       transform_tolerance: 0.1
       grid:
         tolerance: 0.2
-        use_astar: false
-        allow_unknown: false
         use_final_approach_orientation: true

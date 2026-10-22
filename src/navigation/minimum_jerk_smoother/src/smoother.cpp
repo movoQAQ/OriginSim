@@ -7,7 +7,6 @@
 #include <utility>
 #include <vector>
 
-#include "map_server/costmap_layers.hpp"
 #include "tdt/minimumSnap.hpp"
 
 namespace minimum_jerk_smoother
@@ -148,34 +147,20 @@ Result Smoother::smooth(const Plan & original, const map_server::Costmap2D & map
         return fallback;
       }
     }
-    // 与前端共用地图语义；额外膨胀覆盖障碍栅格面积和多项式采样间隙。
-    auto safe = map;
-    const double resolution = map.getResolution();
-    const double padding = body_radius + 2.0 * resolution;
-    map_server::InflationOptions inflation;
-    inflation.radius = padding;
-    inflation.inscribed_radius = padding;
-    inflation.inflate_around_unknown = true;
-    inflation.inflate_unknown = true;
-    map_server::inflate(safe, inflation);
-    tdt::MinimumSnap::Map binary(safe.getSizeInCellsY(), safe.getSizeInCellsX());
-    for (unsigned int y = 0; y < safe.getSizeInCellsY(); ++y) {
-      if (interrupted()) {
-        return fallback;
-      }
-      for (unsigned int x = 0; x < safe.getSizeInCellsX(); ++x) {
-        const double wx = safe.getOriginX() + (x + 0.5) * resolution;
-        const double wy = safe.getOriginY() + (y + 0.5) * resolution;
-        const bool border =
-          wx - safe.getOriginX() < padding || wy - safe.getOriginY() < padding ||
-          safe.getOriginX() + safe.getSizeInCellsX() * resolution - wx < padding ||
-          safe.getOriginY() + safe.getSizeInCellsY() * resolution - wy < padding;
-        binary(y, x) =
-          !border && safe.getCost(x, y) < map_server::INSCRIBED_INFLATED_OBSTACLE ? 255 : 0;
+    // CollisionMask already includes the circular body, safety and discretization margin.
+    // YAstar and SFC read the same retained DerivedMaps; never inflate a second time.
+    const auto snapshot = map.getDerivedMaps();
+    if (!snapshot) return fallback;
+    const double resolution = snapshot->geometry.resolution;
+    tdt::MinimumSnap::Map binary(snapshot->geometry.height, snapshot->geometry.width);
+    for (unsigned int y = 0; y < snapshot->geometry.height; ++y) {
+      if (interrupted()) return fallback;
+      for (unsigned int x = 0; x < snapshot->geometry.width; ++x) {
+        binary(y,x) = snapshot->collision_mask.data[static_cast<size_t>(y)*snapshot->geometry.width+x] ? 0 : 255;
       }
     }
     tdt::MinimumSnap solver;
-    solver.setMap(binary, resolution, safe.getOriginX(), safe.getOriginY());
+    solver.setMap(binary, resolution, snapshot->geometry.origin_x, snapshot->geometry.origin_y);
     solver.setOrder(6);  // 六个系数，即五次多项式。
     solver.setMaxDx(3);  // 最小化 jerk，跨全部 NORMAL/CONNECTOR 保证 C2 连续。
     solver.setStrictCollision(true);

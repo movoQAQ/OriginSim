@@ -4,7 +4,6 @@
 #include <cmath>
 #include <stdexcept>
 #include <unordered_set>
-#include "map_server/cost_values.hpp"
 
 namespace map_server
 {
@@ -61,11 +60,11 @@ void DynamicMemory::observe(const std::vector<DynamicCell> & cells, double time,
 DynamicSnapshot DynamicMemory::snapshot(const DynamicGrid & grid)
 {
   DynamicSnapshot result;
-  result.data.assign(grid.size(), FREE_SPACE); result.confidence.assign(grid.size(), 0.0f);
+  result.data.assign(grid.size(), 0); result.confidence.assign(grid.size(), 0.0f);
   for (auto it = cells_.begin(); it != cells_.end();) {
     if (!grid.contains(it->first)) {it = cells_.erase(it); continue;}
     const auto index = grid.index(it->first);
-    result.data[index] = it->second.occupied ? LETHAL_OBSTACLE : FREE_SPACE;
+    result.data[index] = it->second.occupied ? 1 : 0;
     result.confidence[index] = static_cast<float>(it->second.confidence);
     ++it;
   }

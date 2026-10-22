@@ -169,9 +169,8 @@ void MincoMpcController::checkPrediction(
   const auto & footprint = costmap_->getRobotFootprint();
   const double radius = (footprint.empty() ? costmap_->settings().robot_radius :
     map_server::calculateMinAndMaxDistances(footprint).second) + collision_margin_;
-  // The 253 band already accounts for the robot's inscribed radius: check it
-  // at the center only. Sweep the full disc against lethal/unknown cells so
-  // that inflation does not count the robot radius a second time.
+  // Sweep the physical disc against raw fused cells. CollisionMask already
+  // includes robot clearance and must not be expanded here again.
   const auto check = [&](double x, double y, size_t step) {
       unsigned int mx, my;
       if (!grid->worldToMap(x - radius, y - radius, mx, my) ||
@@ -180,12 +179,6 @@ void MincoMpcController::checkPrediction(
       const double reach = radius + resolution * std::sqrt(0.5);
       const int cells = static_cast<int>(std::ceil(reach / resolution));
       grid->worldToMap(x, y, mx, my);
-      // const auto center_cost = grid->getCost(mx, my);
-      // if (center_cost >= map_server::INSCRIBED_INFLATED_OBSTACLE) {
-      //   throw std::runtime_error("MPC prediction center is inscribed, lethal or unknown: x=" +
-      //           std::to_string(x) + " y=" + std::to_string(y) +
-      //           " cost=" + std::to_string(center_cost));
-      // }
       for (int dy = -cells; dy <= cells; ++dy) {
         for (int dx = -cells; dx <= cells; ++dx) {
           const int ix = static_cast<int>(mx) + dx, iy = static_cast<int>(my) + dy;
@@ -195,9 +188,8 @@ void MincoMpcController::checkPrediction(
           grid->mapToWorld(ix, iy, wx, wy);
           if (std::hypot(wx - x, wy - y) > reach) {continue;}
 
-          const auto cost = grid->getCost(ix, iy);
-          // 只判断是否碰撞真实障碍
-          if (cost != map_server::LETHAL_OBSTACLE) {
+          // Physical footprint check uses uninflated fused occupancy.
+          if (!grid->rawObstacle(ix, iy)) {
             continue;
           }
           // 栅格尺寸为 resolution × resolution
@@ -220,7 +212,7 @@ void MincoMpcController::checkPrediction(
               " cell_y=" + std::to_string(wy) +
               " distance=" + std::to_string(std::sqrt(distance_sq)) +
               " radius=" + std::to_string(radius) +
-              " cost=" + std::to_string(cost) +
+              " raw_obstacle=true" +
               " step=" + std::to_string(step));
           }
         }

@@ -17,7 +17,6 @@
 #include "nav_executor/path_executor.hpp"
 #include "nav_executor/route_monitor.hpp"
 #include "nav_executor/path_collision.hpp"
-#include "map_server/costmap_layers.hpp"
 #include "map_server/costmap_client.hpp"
 #include "rclcpp/parameter_map.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -44,7 +43,7 @@ rclcpp::NodeOptions costmapClientOptions(
   const std::string & filename, const std::string & producer, bool use_sim_time)
 {
   if (filename.empty()) {
-    return rclcpp::NodeOptions();
+    return rclcpp::NodeOptions().parameter_overrides({rclcpp::Parameter("use_sim_time", use_sim_time)});
   }
   const auto source_name = "/" + producer;
   auto parameters = rclcpp::parameters_from_map(
@@ -273,6 +272,9 @@ public:
       &snapshot_,
       global_frame_,
       costmap_->getBaseFrameID());
+    if (declare_parameter("use_region_raster", false)) {
+      planner_->setRegionQuery([this](const Eigen::Vector2d & p) {return costmap_->regionAt(p);});
+    }
     planner_executor_.add_node(planner_node_);
     worker_ = std::make_unique<PathPlanner>(
       [this](const PlanningRequest & request, PathPlanner::CancelChecker cancelled) {
@@ -292,13 +294,8 @@ public:
         if (snapshot_.getSizeInCellsX() < 3 || snapshot_.getSizeInCellsY() < 3) {
           throw std::runtime_error("Global costmap has no usable map");
         }
-        // 保留原始快照，避免平滑时重复膨胀车体余量
+        // Both float search and SFC retain this exact immutable DerivedMaps version.
         const auto smoothing_map = snapshot_;
-        // 在规划线程的私有快照上膨胀，预留与碰撞校验一致的车体余量
-        map_server::InflationOptions clearance;
-        clearance.radius = path_clearance_ + 2.0 * snapshot_.getResolution();
-        clearance.inscribed_radius = clearance.radius;
-        map_server::inflate(snapshot_, clearance);
         const auto deadline =
           TaskManager::Clock::now() + std::chrono::duration<double>(planning_timeout_);
         auto timed_cancel = [cancelled, deadline]() {
@@ -632,11 +629,14 @@ private:
       for (const auto & vertex : costmap_->getRobotFootprint()) {
         radius = std::max(radius, std::hypot(vertex.x, vertex.y));
       }
+      auto latest_grid = *grid;
+      const auto latest_dynamic = costmap_->getLatestDynamicObstacles();
+      latest_grid.setLatestDynamic(latest_dynamic);
       event = monitor_->observeBlocked(tasks_.plan().full_path,
         tasks_.identity(),
         *pose,
-        *grid,
-        costmap_->snapshotStamp().nanoseconds(),
+        latest_grid,
+        latest_dynamic ? static_cast<int64_t>(latest_dynamic->input_version) : 0,
         radius,
         now);
     }
@@ -793,16 +793,13 @@ int main(int argc, char ** argv)
     const auto params_file = config->declare_parameter("navigation_params_file", std::string{});
     const bool use_sim_time = config->get_parameter("use_sim_time").as_bool();
     config.reset();
-    auto global = std::make_shared<map_server::CostmapClient>("global_costmap_client",
-      nav_executor::costmapClientOptions(params_file, "global_costmap", use_sim_time));
-    auto local = std::make_shared<map_server::CostmapClient>("local_costmap_client",
-      nav_executor::costmapClientOptions(params_file, "local_costmap", use_sim_time));
-    auto node = std::make_shared<nav_executor::NavExecutor>(global, local);
-    node->initializeExecutor(local);
+    auto maps = std::make_shared<map_server::CostmapClient>("map_client",
+      nav_executor::costmapClientOptions(params_file, "map_client", use_sim_time));
+    auto node = std::make_shared<nav_executor::NavExecutor>(maps, maps);
+    node->initializeExecutor(maps);
     // 控制计算期间独立接收里程计与快照，默认回调组串行处理任务和控制接口
     rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions{}, 4);
-    executor.add_node(global);
-    executor.add_node(local);
+    executor.add_node(maps);
     executor.add_node(node);
     auto spinning = std::async(std::launch::async, [&executor]() {
       executor.spin();
@@ -815,8 +812,7 @@ int main(int argc, char ** argv)
     spinning.get();
     executor.remove_node(node);
     node.reset(); // 先停止规划再销毁订阅端栅格
-    executor.remove_node(local);
-    executor.remove_node(global);
+    executor.remove_node(maps);
   } catch (const std::exception & exception) {
     RCLCPP_ERROR(rclcpp::get_logger("nav_executor"), "%s", exception.what());
     exit_code = 1;

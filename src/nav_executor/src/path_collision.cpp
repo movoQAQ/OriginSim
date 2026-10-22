@@ -55,7 +55,7 @@ std::optional<double> findPathObstacle(const nav_msgs::msg::Path & path,
           static_cast<double>(grid.getSizeInCellsY()) - 1));
       for (int y = y0; y <= y1 && blocked_ahead < 0.0; ++y) {
         for (int x = x0; x <= x1; ++x) {
-          if (grid.getCost(x, y) != map_server::LETHAL_OBSTACLE) {
+          if (!grid.rawObstacle(x, y)) {
             continue;
           }
           const double wx = grid.getOriginX() + (x + 0.5) * resolution;

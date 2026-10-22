@@ -55,20 +55,18 @@ DynamicCloud::Ptr DynamicCloudFilter::voxel(const DynamicCloud & cloud, double l
   return result;
 }
 DynamicCloud::Ptr DynamicCloudFilter::prepare(const DynamicCloud & cloud,
-  const Eigen::Isometry3d & tracking_from_cloud, const Eigen::Vector3d & robot) const
+  const Eigen::Vector3d & robot) const
 {
   auto cropped = std::make_shared<DynamicCloud>();
   cropped->reserve(cloud.size());
   for (const auto & point : cloud) {
     if (!pcl::isFinite(point)) {continue;}
-    const Eigen::Vector3d value = tracking_from_cloud * point.getVector3fMap().cast<double>();
-    pcl::PointXYZ transformed(value.x(), value.y(), value.z());
-    if (inRoi(transformed, robot)) {cropped->push_back(transformed);}
+    if (inRoi(point, robot)) {cropped->push_back(point);}
   }
   return voxel(*cropped, options_.voxel_size);
 }
 DynamicDetection DynamicCloudFilter::detect(const DynamicCloud & accumulated,
-  const DynamicCloud & fresh, const Eigen::Isometry3d & static_from_tracking,
+  const DynamicCloud & fresh,
   const Eigen::Vector3d & robot, const DynamicGrid & grid)
 {
   DynamicCloud cropped;
@@ -80,8 +78,7 @@ DynamicDetection DynamicCloudFilter::detect(const DynamicCloud & accumulated,
   std::vector<int> nearest(1);
   std::vector<float> distance(1);
   const auto is_dynamic = [&](const pcl::PointXYZ & point) {
-      const Eigen::Vector3d value = static_from_tracking * point.getVector3fMap().cast<double>();
-      const pcl::PointXYZ query(value.x(), value.y(), value.z());
+      const pcl::PointXYZ & query = point;
       if (!pcl::isFinite(query)) {throw std::runtime_error("Nonfinite static PCD transform");}
       return static_tree_.nearestKSearch(query, 1, nearest, distance) != 1 ||
              distance[0] > options_.static_distance * options_.static_distance;

@@ -4,6 +4,8 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import ComposableNodeContainer
@@ -58,6 +60,8 @@ def generate_launch_description():
             'map': os.path.join(bringup_dir, 'map', 'rmuc_2026.yaml'),
             'use_sim_time': 'true',
             'params_file': params_file,
+            'static_pcd': LaunchConfiguration('static_pcd'),
+            'region_yaml': LaunchConfiguration('region_yaml'),
         }.items(),
     )
 
@@ -67,6 +71,8 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        DeclareLaunchArgument('static_pcd', default_value=''),
+        DeclareLaunchArgument('region_yaml', default_value=''),
         pointlio,
         container,
         modify,

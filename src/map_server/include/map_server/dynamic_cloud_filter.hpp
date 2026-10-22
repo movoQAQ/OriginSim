@@ -30,9 +30,9 @@ class DynamicCloudFilter
 public:
   DynamicCloudFilter(const DynamicFilterOptions & options, const std::string & static_pcd);
   DynamicCloud::Ptr prepare(const DynamicCloud & cloud,
-    const Eigen::Isometry3d & tracking_from_cloud, const Eigen::Vector3d & robot) const;
+    const Eigen::Vector3d & robot_map) const;
   DynamicDetection detect(const DynamicCloud & accumulated, const DynamicCloud & fresh,
-    const Eigen::Isometry3d & static_from_tracking, const Eigen::Vector3d & robot,
+    const Eigen::Vector3d & robot_map,
     const DynamicGrid & grid);
   size_t staticSize() const {return static_cloud_->size();}
 private:

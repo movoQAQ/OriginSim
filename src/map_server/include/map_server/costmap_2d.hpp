@@ -1,74 +1,106 @@
 #pragma once
-
+#include "map_server/derived_maps.hpp"
 #include <algorithm>
-#include <cmath>
-#include <cstddef>
 #include <mutex>
-#include <stdexcept>
-#include <vector>
-#include "map_server/cost_values.hpp"
-
 namespace map_server
 {
-// Axis-aligned, row-major raw cost grid. Callers lock getMutex() for compound reads.
+// Consumer view of one immutable DerivedMaps. Copies retain the same version.
+// The mutex protects replacing the pointer only; no mutable uint8 cost buffer.
 class Costmap2D
 {
 public:
   using mutex_t = std::recursive_mutex;
   Costmap2D() = default;
-  Costmap2D(unsigned int width, unsigned int height, double resolution,
-    double origin_x, double origin_y, unsigned char value = FREE_SPACE)
-  {resizeMap(width, height, resolution, origin_x, origin_y, value);}
-  Costmap2D(const Costmap2D & other) {*this = other;}
-  Costmap2D & operator=(const Costmap2D & other)
+  Costmap2D(const Costmap2D& other) { *this = other; }
+  Costmap2D& operator=(const Costmap2D& other)
   {
-    if (this == &other) {return *this;}
-    std::scoped_lock lock(mutex_, other.mutex_);
-    width_ = other.width_; height_ = other.height_; resolution_ = other.resolution_;
-    origin_x_ = other.origin_x_; origin_y_ = other.origin_y_; data_ = other.data_;
+    if (this != &other)
+    {
+      std::scoped_lock lock(mutex_, other.mutex_);
+      maps_ = other.maps_;
+      dynamic_ = other.dynamic_;
+    }
     return *this;
   }
-  void resizeMap(unsigned int width, unsigned int height, double resolution,
-    double origin_x, double origin_y, unsigned char value = FREE_SPACE)
+  void setSnapshot(std::shared_ptr<const DerivedMaps> maps)
   {
-    if (!width || !height || !std::isfinite(resolution) || resolution <= 0.0 ||
-      !std::isfinite(origin_x) || !std::isfinite(origin_y) ||
-      static_cast<size_t>(width) * height > 100000000)
-    {throw std::invalid_argument("Invalid or excessive costmap geometry");}
-    std::vector<unsigned char> data(static_cast<size_t>(width) * height, value);
     std::lock_guard<mutex_t> lock(mutex_);
-    width_ = width; height_ = height; resolution_ = resolution;
-    origin_x_ = origin_x; origin_y_ = origin_y; data_.swap(data);
+    maps_ = std::move(maps);
   }
-  bool worldToMap(double wx, double wy, unsigned int & mx, unsigned int & my) const
+  std::shared_ptr<const DerivedMaps> getDerivedMaps() const
   {
-    if (!std::isfinite(wx) || !std::isfinite(wy) || wx < origin_x_ || wy < origin_y_ ||
-      wx >= origin_x_ + width_ * resolution_ || wy >= origin_y_ + height_ * resolution_)
-    {return false;}
-    mx = static_cast<unsigned int>((wx - origin_x_) / resolution_);
-    my = static_cast<unsigned int>((wy - origin_y_) / resolution_);
-    return mx < width_ && my < height_;
+    std::lock_guard<mutex_t> lock(mutex_);
+    return maps_;
   }
-  void mapToWorld(unsigned int mx, unsigned int my, double & wx, double & wy) const
-  {wx = origin_x_ + (mx + 0.5) * resolution_; wy = origin_y_ + (my + 0.5) * resolution_;}
-  unsigned char getCost(unsigned int mx, unsigned int my) const
-  {return data_.at(static_cast<size_t>(my) * width_ + mx);}
-  unsigned char getCost(unsigned int index) const {return data_.at(index);}
-  void setCost(unsigned int mx, unsigned int my, unsigned char value)
-  {data_.at(static_cast<size_t>(my) * width_ + mx) = value;}
-  unsigned int getSizeInCellsX() const {return width_;}
-  unsigned int getSizeInCellsY() const {return height_;}
-  double getResolution() const {return resolution_;}
-  double getOriginX() const {return origin_x_;}
-  double getOriginY() const {return origin_y_;}
-  unsigned char * getCharMap() {return data_.data();}
-  const unsigned char * getCharMap() const {return data_.data();}
-  mutex_t * getMutex() const {return &mutex_;}
+  bool worldToMap(double wx, double wy, unsigned int& x, unsigned int& y) const
+  {
+    if (!maps_)
+      return false;
+    auto i = maps_->geometry.index({ wx, wy });
+    if (!i)
+      return false;
+    x = *i % maps_->geometry.width;
+    y = *i / maps_->geometry.width;
+    return true;
+  }
+  void mapToWorld(unsigned x, unsigned y, double& wx, double& wy) const
+  {
+    const auto p = maps_->geometry.center(static_cast<size_t>(y) * getSizeInCellsX() + x);
+    wx = p.x();
+    wy = p.y();
+  }
+  float getCost(unsigned x, unsigned y) const
+  {
+    return getCost(static_cast<size_t>(y) * getSizeInCellsX() + x);
+  }
+  float getCost(size_t index) const { return maps_->costmap.data.at(index); }
+  void setLatestDynamic(std::shared_ptr<const DynamicObstacleView> view)
+  {
+    dynamic_ = std::move(view);
+  }
+  bool rawObstacle(unsigned x, unsigned y) const
+  {
+    if (maps_->fused_obstacles.data.at(static_cast<size_t>(y) * getSizeInCellsX() + x))
+      return true;
+    if (!dynamic_)
+      return false;
+    const auto p = maps_->geometry.center(static_cast<size_t>(y) * getSizeInCellsX() + x);
+    const double half = getResolution() * 0.5;
+    if (dynamic_->cloud_mask)
+    {
+      const auto& cloud = *dynamic_->cloud_mask;
+      const auto& g = cloud.geometry;
+      const auto bound=[](double v, unsigned n) {
+        return static_cast<int>(std::clamp(v,0.0,static_cast<double>(n)));
+      };
+      const int x0=bound(std::floor((p.x()-half-g.origin_x)/g.resolution),g.width);
+      const int y0=bound(std::floor((p.y()-half-g.origin_y)/g.resolution),g.height);
+      const int x1=bound(std::ceil((p.x()+half-g.origin_x)/g.resolution),g.width);
+      const int y1=bound(std::ceil((p.y()+half-g.origin_y)/g.resolution),g.height);
+      for(int cy=y0;cy<y1;++cy)for(int cx=x0;cx<x1;++cx)
+        if(cloud.data.at(static_cast<size_t>(cy)*g.width+cx)) return true;
+    }
+    for (const auto* targets : { &dynamic_->allies, &dynamic_->enemies })
+      for (const auto& t : *targets)
+      {
+        const double dx = std::max(0.0, std::abs(t.xy_map.x() - p.x()) - half);
+        const double dy = std::max(0.0, std::abs(t.xy_map.y() - p.y()) - half);
+        if (dx * dx + dy * dy <= t.physical_radius_m * t.physical_radius_m)
+          return true;
+      }
+    return false;
+  }
+  unsigned getSizeInCellsX() const { return maps_ ? maps_->geometry.width : 0; }
+  unsigned getSizeInCellsY() const { return maps_ ? maps_->geometry.height : 0; }
+  double getResolution() const { return maps_ ? maps_->geometry.resolution : 1; }
+  double getOriginX() const { return maps_ ? maps_->geometry.origin_x : 0; }
+  double getOriginY() const { return maps_ ? maps_->geometry.origin_y : 0; }
+  const float* getCostData() const { return maps_->costmap.data.data(); }
+  mutex_t* getMutex() const { return &mutex_; }
 
 private:
-  unsigned int width_{0}, height_{0};
-  double resolution_{1.0}, origin_x_{0.0}, origin_y_{0.0};
-  std::vector<unsigned char> data_;
+  std::shared_ptr<const DerivedMaps> maps_;
+  std::shared_ptr<const DynamicObstacleView> dynamic_;
   mutable mutex_t mutex_;
 };
-}  // namespace map_server
+}

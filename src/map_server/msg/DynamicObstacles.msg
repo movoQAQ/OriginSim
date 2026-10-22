@@ -1,9 +1,9 @@
-# Current measured obstacles only; no trajectory prediction.
-# data uses raw Costmap uint8 values (0 or 254), never occupancy probabilities.
+# Lightweight current perception; independent of EDT completion.
 std_msgs/Header header
-builtin_interfaces/Time observation_stamp
-nav_msgs/MapMetaData info
-uint8[] data
-float32[] confidence
-bool current
-string status
+uint64 producer_id
+uint64 input_version
+nav_msgs/MapMetaData cloud_info
+uint8[] cloud_mask
+map_server/RadarTarget[] allies
+map_server/RadarTarget[] enemies
+map_server/DynamicHealth health

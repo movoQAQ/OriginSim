@@ -118,7 +118,15 @@ install(
 )
 
 # Export dependencies
-install(FILES PCD/scans_map_zmax3.pcd PCD/rmuc2026.pcd DESTINATION share/${PROJECT_NAME}/PCD)
+# Map assets are not distributed with this repository. Do not make compilation
+# depend on missing PCD files; runtime localization still needs its configured map.
+foreach(pcd_file scans_map_zmax3.pcd rmuc2026.pcd)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/PCD/${pcd_file}")
+    install(FILES "PCD/${pcd_file}" DESTINATION share/${PROJECT_NAME}/PCD)
+  else()
+    message(WARNING "Localization PCD ${pcd_file} is absent; supply the real map before running localization")
+  endif()
+endforeach()
 
 ament_export_dependencies(
   rclcpp
