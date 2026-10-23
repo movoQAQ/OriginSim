@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "robot_radius_m": 0.3,
+  "safety_margin_m": 0.01,
+  "grid_margin_factor": 0.4,
+  "grid_margin_m": 0.020000000000000004,
+  "hard_collision_threshold_m": 0.33,
+  "previously_stuck_cell_distance_m": 0.3535533845424652,
+  "previously_stuck_cell_collision": 0,
+  "path_monitor_safety_margin_m": 0.01
+}

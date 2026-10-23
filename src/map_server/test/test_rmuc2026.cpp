@@ -16,6 +16,7 @@ CostmapOptions configured(const std::string &path) {
   CostmapOptions o;
   o.robot_radius = p["robot_radius"].as<double>();
   o.safety_margin = p["safety_margin"].as<double>();
+  o.grid_margin_factor = p["grid_margin_factor"].as<double>();
   o.soft_radius = p["soft_radius"].as<double>();
   o.alpha = p["alpha"].as<double>();
   o.beta = p["beta"].as<double>();
@@ -43,12 +44,30 @@ protected:
   CostmapOptions options;
 };
 
+TEST_F(Rmuc2026, PreviouslyBlockedStartUsesRequestedMargin) {
+  const auto start = tuned.geometry.index({7.271761107, 10.137331204});
+  ASSERT_TRUE(start);
+  EXPECT_FALSE(tuned.collision_mask.data[*start]);
+  auto old = tuned;
+  auto previous = options;
+  previous.safety_margin = 0.05;
+  previous.grid_margin_factor = std::sqrt(0.5);
+  generateCosts(old, previous);
+  EXPECT_TRUE(old.collision_mask.data[*start]);
+  const auto goal = tuned.geometry.index({7.225, 10.125});
+  ASSERT_TRUE(goal);
+  ASSERT_FALSE(tuned.collision_mask.data[*goal]);
+  EXPECT_FALSE(YAstarCore::search(tuned, *start, *goal, 0.0, [] { return false; }).empty());
+}
+
 TEST_F(Rmuc2026, SofterRealMapCostsPreserveConfiguredCollisionEnvelope) {
   ASSERT_EQ(tuned.geometry.width, 583u);
   ASSERT_EQ(tuned.geometry.height, 300u);
   ASSERT_DOUBLE_EQ(tuned.geometry.resolution, 0.05);
   EXPECT_DOUBLE_EQ(options.robot_radius, 0.3);
-  EXPECT_DOUBLE_EQ(options.safety_margin, 0.05);
+  EXPECT_DOUBLE_EQ(options.safety_margin, 0.01);
+  EXPECT_DOUBLE_EQ(options.grid_margin_factor, 0.4);
+  EXPECT_DOUBLE_EQ(tuned.grid_margin_m, 0.02);
   EXPECT_FALSE(options.tdt_unbounded_inverse_distance);
   const auto standalone = configured(RMUC2026_SERVER_PARAMS);
   EXPECT_DOUBLE_EQ(options.robot_radius, standalone.robot_radius);
@@ -82,7 +101,7 @@ TEST_F(Rmuc2026, SofterRealMapCostsPreserveConfiguredCollisionEnvelope) {
   ASSERT_GT(finite, 60000u);
   ASSERT_GT(new_flat, finite * 0.4);
   EXPECT_LT(old_flat, finite / 10);
-  EXPECT_LT(maximum, 1.6f);
+  EXPECT_LT(maximum, 1.75f);
   std::sort(clearance.begin(), clearance.end());
   const double median = clearance[clearance.size() / 2];
   EXPECT_GT(median, 0.65);

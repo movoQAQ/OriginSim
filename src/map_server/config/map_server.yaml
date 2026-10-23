@@ -4,7 +4,8 @@ map_server:
     use_sim_time: true
     robot_base_frame: base_link_fake
     robot_radius: 0.3
-    safety_margin: 0.05
+    safety_margin: 0.01
+    grid_margin_factor: 0.4  # 0.02 m at 0.05 m resolution; total hard clearance 0.33 m.
     # Tuned against bringup/map/rmuc_2026.pgm; operator-specified 0.30 m robot.
     soft_radius: 0.8
     alpha: 0.7

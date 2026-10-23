@@ -54,7 +54,7 @@ nav_executor:
       path_blocked:
         enabled: true
         lookahead_distance: 5.0
-        safety_margin: 0.05
+        safety_margin: 0.01
         confirmations: 3
         maximum_sample_gap: 1.0
     MPC:

@@ -27,7 +27,7 @@ struct DerivedMaps {
   DistanceGrid distance_field;
   CostGrid costmap;
   BinaryGrid collision_mask;
-  double generated_at_s{0}, hard_radius_m{0};
+  double generated_at_s{0}, hard_radius_m{0}, grid_margin_m{0};
   double fusion_ms{0}, edt_ms{0}, costmap_ms{0}, cloud_ms{0};
 };
 } // namespace map_server

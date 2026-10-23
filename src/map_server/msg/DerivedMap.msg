@@ -9,6 +9,7 @@ float32[] distance_field
 float32[] costmap
 uint8[] collision_mask
 float64 generated_at_s
+float64 grid_margin_m
 float64 hard_radius_m
 float64 fusion_ms
 float64 edt_ms

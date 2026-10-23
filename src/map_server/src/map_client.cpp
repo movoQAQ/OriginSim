@@ -116,6 +116,7 @@ MapClient::MapClient(const std::string &name,
           if (m->fused_obstacles.size() != n || m->distance_field.size() != n ||
               m->costmap.size() != n || m->collision_mask.size() != n ||
               !m->version || !std::isfinite(m->generated_at_s) ||
+              !std::isfinite(m->grid_margin_m) || m->grid_margin_m < 0 ||
               !std::isfinite(m->hard_radius_m) ||
               m->hard_radius_m < settings_.robot_radius)
             throw std::invalid_argument("Derived map size/envelope mismatch");
@@ -141,6 +142,7 @@ MapClient::MapClient(const std::string &name,
           map->collision_mask = {g, std::move(m->collision_mask)};
           map->generated_at_s = m->generated_at_s;
           map->hard_radius_m = m->hard_radius_m;
+          map->grid_margin_m = m->grid_margin_m;
           map->fusion_ms = m->fusion_ms;
           map->edt_ms = m->edt_ms;
           map->costmap_ms = m->costmap_ms;

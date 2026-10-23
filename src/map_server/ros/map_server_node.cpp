@@ -61,6 +61,7 @@ public:
     MapServerConfig c;
     c.cost.robot_radius = declare_parameter("robot_radius", 0.3);
     c.cost.safety_margin = declare_parameter("safety_margin", 0.05);
+    c.cost.grid_margin_factor = declare_parameter("grid_margin_factor", c.cost.grid_margin_factor);
     c.cost.soft_radius = declare_parameter("soft_radius", 0.8);
     c.cost.alpha = declare_parameter("alpha", 0.7);
     c.cost.beta = declare_parameter("beta", 0.15);
@@ -292,6 +293,7 @@ private:
       out.collision_mask = maps->collision_mask.data;
       out.generated_at_s = maps->generated_at_s;
       out.hard_radius_m = maps->hard_radius_m;
+      out.grid_margin_m = maps->grid_margin_m;
       out.fusion_ms = maps->fusion_ms;
       out.edt_ms = maps->edt_ms;
       out.costmap_ms = maps->costmap_ms;

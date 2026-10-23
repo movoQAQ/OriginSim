@@ -272,6 +272,13 @@ TEST(Cost, RejectInvalidOptionsAndDistances)
   m.distance_field.data[0] = NAN;
   EXPECT_THROW(generateCosts(m, CostmapOptions{}), std::invalid_argument);
 }
+TEST(Cost, RejectInvalidGridMargin) {
+  CostmapOptions o;
+  o.grid_margin_factor = -0.1;
+  EXPECT_THROW(o.validate(), std::invalid_argument);
+  o.grid_margin_factor = NAN;
+  EXPECT_THROW(o.validate(), std::invalid_argument);
+}
 TEST(Cost, UnboundedMode)
 {
   auto b = grid(100, 100);

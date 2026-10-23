@@ -16,8 +16,8 @@ std::optional<double> findPathObstacle(const nav_msgs::msg::Path & path,
   {
     return 0.0;
   }
-  // 增加栅格半对角线余量以覆盖整个障碍栅格
-  const double radius = robot_radius + grid.geometry().resolution * std::sqrt(0.5);
+  // Use the same discretization margin as the producing MapServer.
+  const double radius = robot_radius + grid.derived().grid_margin_m;
   const double resolution = grid.geometry().resolution;
   double blocked_ahead = -1.0;
   double arc = 0.0;

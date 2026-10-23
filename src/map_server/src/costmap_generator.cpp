@@ -7,7 +7,7 @@ void
 CostmapOptions::validate() const
 {
   if (!std::isfinite(robot_radius) || robot_radius <= 0 || !std::isfinite(safety_margin) ||
-      safety_margin < 0 || !std::isfinite(soft_radius) ||
+      safety_margin < 0 || !std::isfinite(grid_margin_factor) || grid_margin_factor < 0 || !std::isfinite(soft_radius) ||
       soft_radius <= robot_radius + safety_margin || !std::isfinite(alpha) || alpha < 0 ||
       !std::isfinite(beta) || beta <= 0)
     throw std::invalid_argument("Invalid costmap options");
@@ -24,7 +24,8 @@ generateCosts(DerivedMaps& m, const CostmapOptions& o)
   m.costmap = { m.geometry, std::vector<float>(m.geometry.size(), 1) };
   m.collision_mask = { m.geometry, std::vector<uint8_t>(m.geometry.size(), 0) };
   const auto& g = m.geometry;
-  const double discrete = g.resolution * std::sqrt(0.5);
+  const double discrete = g.resolution * o.grid_margin_factor;
+  m.grid_margin_m = discrete;
   for (size_t i = 0; i < g.size(); ++i)
   {
     double d = m.distance_field.data[i];
