@@ -1,0 +1,35 @@
+{
+  "passed": true,
+  "verification": "offline mesh and robot geometry; simulation kept stopped",
+  "world": "rmuc_2027",
+  "floor_at_spawn_m": 0.2,
+  "wheel_radius_m": 0.0758,
+  "chassis_to_imu_height_m": 0.6,
+  "gazebo_spawn": {
+    "name": "red_standard_robot1",
+    "color": "red",
+    "x_pose": "3.4",
+    "y_pose": "9.5",
+    "z_pose": "0.89",
+    "yaw": "0.0"
+  },
+  "modify_initial": {
+    "parent_frame": "map",
+    "target_frame": "odom",
+    "X": 3.4,
+    "Y": 9.5,
+    "Z": 0.8758,
+    "Rotation": -1.095
+  },
+  "imu_yaw_offset_rad": -1.095,
+  "gicp_started_by_bringup": false,
+  "nominal_resting_imu_height_m": 0.8758,
+  "wheel_contact_floor_heights_m": [
+    0.193045,
+    0.206419,
+    0.193158,
+    0.206426
+  ],
+  "spawn_tire_clearance_above_highest_sample_m": 0.007774000000000031,
+  "dynamic_settling_verified": false
+}

@@ -50,10 +50,9 @@ def generate_launch_description():
         ],
     )
 
-    gicp = IncludeLaunchDescription(
+    modify = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(
-            get_package_share_directory('small_gicp_localization'), 'launch', 'small_gicp_localization.launch.py')),
-        launch_arguments={'pcd_file': LaunchConfiguration('static_pcd')}.items(),
+            get_package_share_directory('modify_map_to_odom'), 'launch', 'modify.launch.py'))
     )
 
     load_map_server = IncludeLaunchDescription(
@@ -82,7 +81,7 @@ def generate_launch_description():
         LogInfo(msg=['Static reference PCD: ', LaunchConfiguration('static_pcd')]),
         pointlio,
         container,
-        gicp,
+        modify,
         start_rviz,
         load_map_server,
         fake_baselink,

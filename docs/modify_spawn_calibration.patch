@@ -1,0 +1,12 @@
+--- a/gazebo/src/rmu_gazebo_simulator/config/gz_world.yaml
++++ b/gazebo/src/rmu_gazebo_simulator/config/gz_world.yaml
+@@ -67 +67,8 @@
+-  rmuc_2027: *rmuc_2025_robots
++  # Spawn just above all four tire contacts; Point-LIO starts after settling.
++  rmuc_2027:
++    - name: "red_standard_robot1"
++      color: "red"
++      x_pose: "3.4"
++      y_pose: "9.5"
++      z_pose: "0.89"
++      yaw: "0.0"

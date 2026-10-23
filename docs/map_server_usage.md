@@ -57,4 +57,4 @@ python3 src/map_server/test/test_ros_integration.py \
 
 当前安全和栅格余量调整及验证见 [clearance_margin_adjustment.md](clearance_margin_adjustment.md)。
 
-当前临时采用静态导航并启用 GICP 重定位，Gazebo 使用下载目录的 rmuc_2027.stl；PGM/PCD 保持 2026 资源。详情见 [static_navigation_gicp.md](static_navigation_gicp.md)。
+当前采用静态导航，定位已切回 modify_map_to_odom；Gazebo 使用下载目录的 rmuc_2027.stl，PGM/PCD 保持 2026 资源。初始位姿标定见 [modify_initial_alignment.md](modify_initial_alignment.md)。

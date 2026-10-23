@@ -1,5 +1,7 @@
 # 静态导航、指定 STL 与 GICP（2026-10-23）
 
+> GICP 启动部分为历史记录；用户随后要求停机并切回 modify，当前配置见 [modify_initial_alignment.md](modify_initial_alignment.md)。
+
 按用户要求，当前仅以原有静态 PGM 生成规划地图。`dynamic_obstacles_enabled=false` 使 MapServer 不创建点云和 RadarTargets 障碍订阅；MapClient 的 require_cloud=false、require_radar=false。点云仍供 Point-LIO 和 GICP 定位使用。未来恢复动态融合需要将该开关设为 true，并重启地图节点、按需要恢复来源健康要求。
 
 PGM 和 PCD 未修改，仍为 bringup/map/rmuc_2026.yaml、rmuc_2026.pgm 和 rmuc_2026.pcd。文件哈希与逐格运行验证见 static_gicp_runtime.json。动态模式的 Core 与旧接口测试仍通过。
