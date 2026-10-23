@@ -27,6 +27,7 @@ add_library(${PROJECT_NAME}_core
   src/task_manager.cpp
   src/path_planner.cpp
   src/path_executor.cpp
+  src/recovery.cpp
   src/route_monitor.cpp
   src/path_collision.cpp
   src/connector_executor.cpp
@@ -58,4 +59,9 @@ install(DIRECTORY config launch DESTINATION share/${PROJECT_NAME})
 
 ament_export_include_directories(include)
 ament_export_dependencies(rclcpp geometry_msgs nav_msgs map_server topology_global_planner)
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_recovery test/test_recovery.cpp)
+  target_link_libraries(test_recovery ${PROJECT_NAME}_core)
+endif()
 ament_package()

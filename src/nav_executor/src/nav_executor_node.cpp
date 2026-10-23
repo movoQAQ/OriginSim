@@ -456,6 +456,16 @@ public:
       geometry_msgs::msg::PoseStamped pose;
       const bool pose_available = costmap_->getRobotPose(pose);
       updateConnector(pose_available ? &pose : nullptr, now);
+      const bool was_recovering = executor_ && executor_->state() == ExecutionState::RECOVERING;
+      const bool recovering = executor_ && executor_->updateRecovery(tasks_.identity().goal_id,
+        !emergency_latched_ && tasks_.state() != TaskState::IDLE && tasks_.state() != TaskState::SUCCEEDED);
+      if (recovering != was_recovering) {
+        tasks_.replan();
+        worker_->invalidate(tasks_.generation());
+        monitor_->reset();
+        publishTask();
+      }
+      if (recovering) return; // Recovery owns velocity and suspends planning/result acceptance.
       checkPathBlocked(now, pose_available ? &pose : nullptr);
       if (auto result = worker_->takeResult()) {
         const bool current_result = result->identity == tasks_.identity();
@@ -572,6 +582,8 @@ private:
       return;
     }
     executor_->stop(TaskManager::reasonName(event.reason));
+    if (event.reason == ReplanReason::EXECUTION_STALLED && get_parameter("recovery.enabled").as_bool())
+      executor_->requestRecovery();
     worker_->invalidate(tasks_.generation());
     RCLCPP_WARN(get_logger(),
       "Route replan: reason=%s goal_id=%lu old_generation=%lu new_generation=%lu "

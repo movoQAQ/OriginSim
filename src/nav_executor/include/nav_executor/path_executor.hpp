@@ -14,6 +14,7 @@ enum class ExecutionState
 {
   IDLE,
   RUNNING,
+  RECOVERING,
   STOPPED,
   SUCCEEDED,
   FAILED
@@ -51,6 +52,8 @@ public:
   void emergencyStop();
   void clearEmergencyStop();
   ExecutionState state() const;
+  bool updateRecovery(uint64_t goal_id, bool active);
+  void requestRecovery();
 
 private:
   class Impl;

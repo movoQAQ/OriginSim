@@ -1,4 +1,6 @@
 #include "nav_executor/path_executor.hpp"
+#include "nav_executor/recovery.hpp"
+#include "std_msgs/msg/string.hpp"
 
 #include <cmath>
 #include <atomic>
@@ -111,6 +113,15 @@ public:
     cmd_pub_ = node->create_publisher<geometry_msgs::msg::Twist>(cmd_topic, rclcpp::QoS(1));
     publishZero();
 
+    recovery_config_.enabled = node->declare_parameter("recovery.enabled", true);
+    #define RECOVERY_PARAM(name) recovery_config_.name = node->declare_parameter("recovery." #name, recovery_config_.name)
+    RECOVERY_PARAM(stall_duration); RECOVERY_PARAM(minimum_progress); RECOVERY_PARAM(stopped_speed);
+    RECOVERY_PARAM(reverse_speed); RECOVERY_PARAM(reverse_distance); RECOVERY_PARAM(timeout);
+    RECOVERY_PARAM(cooldown); RECOVERY_PARAM(safety_margin); RECOVERY_PARAM(hazard_band);
+    RECOVERY_PARAM(maximum_sample_gap); RECOVERY_PARAM(max_attempts);
+    #undef RECOVERY_PARAM
+    recovery_ = std::make_unique<Recovery>(recovery_config_);
+    recovery_pub_ = node->create_publisher<std_msgs::msg::String>("nav_executor/recovery_status", rclcpp::QoS(1).transient_local());
     controller_.initialize(node, "MPC", costmap_);
     // 输入接收独立于控制定时器，任务与控制器状态仍由默认回调组修改
     odom_group_ = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -180,6 +191,8 @@ public:
     if (state_ == ExecutionState::RUNNING) {
       RCLCPP_INFO(logger_, "Path execution stopped: %s", reason.c_str());
     }
+    if (recovery_->running()) recovery_->invalidate();
+    stalled_request_ = false;
     path_.reset();
     completion_wait_since_.reset();
     publishZero(); // 先停车再重置优化器
@@ -322,8 +335,79 @@ public:
       tolerances_.stopped_speed);
   }
 
+  bool updateRecovery(uint64_t goal_id, bool active)
+  {
+    if (goal_id != recovery_goal_) {
+      recovery_->reset(); recovery_goal_ = goal_id; last_command_ = geometry_msgs::msg::Twist{}; stalled_request_ = false;
+      last_world_vx_=last_world_vy_=0; last_command_time_=-1e10;
+    }
+    const bool was_running = state_ == ExecutionState::RECOVERING;
+    if (!active || emergency_stop_) {
+      recovery_->reset(); stalled_request_ = false;
+      if (was_running) { publishZero(); state_ = ExecutionState::STOPPED; }
+      reportRecovery();
+      return false;
+    }
+    try {
+      if (!global_ready_() || !costmap_->isCurrent()) throw std::runtime_error("Recovery map stale");
+      auto grid = costmap_->view();
+      if (!grid || !costmap_->isCurrent(*grid)) throw std::runtime_error("Recovery view stale");
+      geometry_msgs::msg::PoseStamped pose;
+      if (!costmap_->getRobotPose(pose) || !finitePose(pose.pose)) throw std::runtime_error("Recovery pose missing");
+      checkStamp(pose.header.stamp, tf_timeout_, "Recovery TF");
+      const auto speed = readSpeed("recovery");
+      const double t = std::chrono::duration<double>(TaskManager::Clock::now().time_since_epoch()).count();
+      const double yaw = tf2::getYaw(pose.pose.orientation);
+      const bool demand = t-last_command_time_ < recovery_config_.maximum_sample_gap &&
+        std::hypot(last_command_.linear.x,last_command_.linear.y) >= 0.1;
+      // Omni chassis: retreat opposite the last commanded map-frame translation.
+      // With no recent translation, use the physical base_link rear, not base_link_fake.
+      double ux = -last_world_vx_, uy = -last_world_vy_;
+      if (t-last_command_time_ > 5.0 || std::hypot(ux,uy)<0.1) {
+        const auto body = costmap_->getTfBuffer()->lookupTransform(costmap_->getGlobalFrameID(), "base_link", tf2::TimePointZero);
+        checkStamp(body.header.stamp, tf_timeout_, "Recovery body TF");
+        const double body_yaw=tf2::getYaw(body.transform.rotation);
+        ux=-std::cos(body_yaw); uy=-std::sin(body_yaw);
+      }
+      unsigned int mx,my;
+      if (!grid->worldToCell(pose.pose.position.x,pose.pose.position.y,mx,my)) throw std::runtime_error("Recovery outside map");
+      const auto index=static_cast<size_t>(my)*grid->geometry().width+mx;
+      const bool hazard=grid->collision(mx,my) || grid->derived().distance_field.data.at(index) <=
+        grid->derived().hard_radius_m+recovery_config_.hazard_band;
+      double radius=costmap_->settings().robot_radius;
+      for (const auto & p:costmap_->getRobotFootprint()) radius=std::max(radius,std::hypot(p.x,p.y));
+      const bool running=recovery_->update(t,pose.pose.position.x,pose.pose.position.y,ux,uy,
+        std::hypot(speed.linear.x,speed.linear.y),hazard,demand,std::exchange(stalled_request_,false),*grid,radius);
+      if (running) {
+        if (!was_running) { publishZero(); path_.reset(); controller_.reset(); }
+        state_=ExecutionState::RECOVERING;
+        geometry_msgs::msg::Twist cmd;
+        cmd.linear.x=std::cos(yaw)*recovery_->vx()+std::sin(yaw)*recovery_->vy();
+        cmd.linear.y=-std::sin(yaw)*recovery_->vx()+std::cos(yaw)*recovery_->vy();
+        publishCommand(cmd);
+      } else if (was_running) { publishZero(); state_=ExecutionState::STOPPED; }
+      reportRecovery();
+      return running;
+    } catch (const std::exception & e) {
+      recovery_->invalidate(); stalled_request_=false;
+      if (was_running) { publishZero(); state_=ExecutionState::STOPPED; RCLCPP_WARN(logger_, "%s", e.what()); }
+      reportRecovery(); return false;
+    }
+  }
+
+  void reportRecovery() {
+    if (recovery_status_ == recovery_->status()) return;
+    recovery_status_=recovery_->status();
+    std_msgs::msg::String msg; msg.data=recovery_status_; recovery_pub_->publish(msg);
+    RCLCPP_INFO(logger_, "Recovery: %s", msg.data.c_str());
+  }
+
   void tick()
   {
+    if (state_ == ExecutionState::RECOVERING) {
+      if (emergency_stop_) stop("Emergency stop during recovery");
+      return;
+    }
     if (!path_) {
       {
         std::lock_guard<std::mutex> lock(odom_mutex_);
@@ -430,12 +514,25 @@ public:
       } else {
         completion_wait_since_.reset();
       }
+      last_command_=command.twist;
+      last_command_time_=std::chrono::duration<double>(TaskManager::Clock::now().time_since_epoch()).count();
+      const double yaw=tf2::getYaw(pose.pose.orientation);
+      last_world_vx_=std::cos(yaw)*command.twist.linear.x-std::sin(yaw)*command.twist.linear.y;
+      last_world_vy_=std::sin(yaw)*command.twist.linear.x+std::cos(yaw)*command.twist.linear.y;
       publishCommand(command.twist);
     } catch (const std::exception & exception) {
       fail(exception.what());
     }
   }
 
+  RecoveryConfig recovery_config_;
+  std::unique_ptr<Recovery> recovery_;
+  uint64_t recovery_goal_{0};
+  bool stalled_request_{false};
+  geometry_msgs::msg::Twist last_command_;
+  double last_command_time_{-1e10}, last_world_vx_{0}, last_world_vy_{0};
+  std::string recovery_status_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr recovery_pub_;
   rclcpp::Node::WeakPtr node_;
   std::shared_ptr<map_server::MapClient> costmap_;
   std::function<bool()> global_ready_;
@@ -508,6 +605,11 @@ void PathExecutor::stop(const std::string & reason)
 {
   impl_->stop(reason);
 }
+
+bool PathExecutor::updateRecovery(uint64_t goal_id, bool active) {
+  return impl_->updateRecovery(goal_id, active);
+}
+void PathExecutor::requestRecovery() { impl_->stalled_request_ = true; }
 
 ExecutionState PathExecutor::state() const
 {

@@ -42,6 +42,19 @@ nav_executor:
       exit_hysteresis: 0.05    # 单位米，解除低头指令前的额外间距
       exit_debounce: 0.2       # 单位秒，持续离开区域后解除低头指令
       pose_timeout: 0.5        # 单位秒，坐标变换过期或缺失时保留指令与区域
+    recovery:
+      enabled: true
+      stall_duration: 3.0
+      minimum_progress: 0.05
+      stopped_speed: 0.05
+      reverse_speed: 0.15
+      reverse_distance: 0.30
+      timeout: 3.0
+      cooldown: 5.0
+      max_attempts: 3
+      safety_margin: 0.01
+      hazard_band: 0.10
+      maximum_sample_gap: 0.25
     route_monitor:
       enabled: true
       deviation_distance: 0.5
