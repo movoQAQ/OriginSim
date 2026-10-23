@@ -11,3 +11,5 @@ Bringup 现在加载 small_gicp_localization，停用手动 modify_map_to_odom�
 同时补全目标点云协方差、PCD 加载失败处理、最少点数及收敛/有效内点检查。初始 map→odom 使用既有出生位置配置 [3.4,9.5,0.876,-1.095]。RViz 的 initialpose 用 map_from_base×base_from_odom 初始化；GICP 以 2 Hz 尝试配准、10 Hz 发布当前修正。可用 2D Pose Estimate 重新给定初始位置。
 
 实际 Gazebo 日志已有 GICP accepted map→odom 记录。该记录表明优化器通过收敛和内点检查，不是整场绝对定位精度证明。保留的 2026 PCD/PGM 与新 2027 物理网格存在资源差异；当前仍观察到 EXECUTION_STALLED 和足迹碰撞。未把本次启动配置验证表述为已经完成稳定导航验证。
+
+Gazebo 文字补丁使用零上下文格式，可在 hxy 根目录执行 `git apply --unidiff-zero nav/docs/gazebo_selected_stl.patch`；再将用户提供的 STL 复制到上述模型 meshes 路径。当前工作区已应用，无需重复执行。
