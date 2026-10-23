@@ -1,0 +1,22 @@
+--- a/gazebo/src/rmu_gazebo_simulator/config/gz_world.yaml
++++ b/gazebo/src/rmu_gazebo_simulator/config/gz_world.yaml
+@@ -1,4 +1,4 @@
+-world: "rmuc_2026"
++world: "rmuc_2027"
+ 
+ robots:
+ 
+--- a/gazebo/src/rmu_gazebo_simulator/resource/worlds/rmuc_2027_world.sdf
++++ b/gazebo/src/rmu_gazebo_simulator/resource/worlds/rmuc_2027_world.sdf
+@@ -40,9 +40,9 @@
+       <include>
+         <uri>model://rmuc_2027</uri>
+       </include>
+-      <!-- Preserve native mesh size; align center to (14.5, 8) and
++      <!-- Downloaded rmuc_2027.stl, native mesh size; align center to (14.5, 8) and
+            ground at the rmuc25 spawn (3.4, 9.5) to z=0.2. -->
+-      <pose>0.350903146 -0.065353155 -0.080687477 0 0 0</pose>
++      <pose>10.376037598 3.718093991 -1.478711000 0 0 0</pose>
+       <static>true</static>
+     </model>
+     <!-- Same wall height as rmuc25; fitted outside the rmuc27 mesh bounds. -->

@@ -17,6 +17,7 @@ map_server:
     region_yaml: ''
     height_yaml: ''
     depth_yaml: ''
+    dynamic_obstacles_enabled: false
     cloud_topic: /cloud_registered
     cloud_timeout: 0.5
     tf_wait_timeout: 0.15
@@ -64,7 +65,7 @@ map_client:
     global_frame: map
     robot_base_frame: base_link_fake
     robot_radius: 0.3
-    require_cloud: true
+    require_cloud: false
     require_radar: false
     map_timeout: 1.0
     transform_tolerance: 0.5

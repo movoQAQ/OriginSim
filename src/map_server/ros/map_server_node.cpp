@@ -162,6 +162,8 @@ public:
     esdf_timer_ = create_wall_timer(std::chrono::milliseconds(200),
                                     [this] { publishEsdf(); });
     publishStatic();
+    const bool dynamic_enabled = declare_parameter("dynamic_obstacles_enabled", true);
+    if (dynamic_enabled) {
     cloud_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
         declare_parameter("cloud_topic", std::string("/cloud_registered")),
         rclcpp::SensorDataQoS().keep_last(1),
@@ -201,6 +203,9 @@ public:
         10, [radar](msg::RadarTargets::ConstSharedPtr m) {
           radar(RadarSource::ENEMY, m);
         });
+    } else {
+      RCLCPP_INFO(get_logger(), "Static-only navigation: cloud and radar obstacle subscriptions disabled");
+    }
     server_->advanceTime(now().seconds(), steadySeconds());
     server_->start();
     timer_ =

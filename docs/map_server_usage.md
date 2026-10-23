@@ -26,7 +26,7 @@ ROS 消费端只有一个 `MapClient`，调用 `auto view = maps->view()` 捕获
 
 ## hxy 仿真资源
 
-默认 startup 使用用户指定的 `bringup/map/rmuc_2026.yaml`（原始 PGM）和配套 `bringup/map/rmuc_2026.pcd`。hxy 的 Gazebo 配置已切至 `rmuc_2026` 场景；PCD 从该场景的静态碰撞表面采样生成，不修改原始 PGM/YAML。`depth_yaml` 保持空字符串，静态消息的 depth 数组为空，查询返回无值；不生成替代 Depth。
+默认 startup 使用用户指定的 `bringup/map/rmuc_2026.yaml`（原始 PGM）和配套 `bringup/map/rmuc_2026.pcd`。hxy 的 Gazebo 当前使用用户指定的 rmuc_2027.stl；PCD 仍保留此前从 2026 场景生成的现有文件，原始 PGM/YAML 不变。`depth_yaml` 保持空字符串，静态消息的 depth 数组为空，查询返回无值；不生成替代 Depth。
 
 默认软代价参数已按 `rmuc_2026.pgm` 调为 soft_radius=0.8 m、alpha=0.7、beta=0.15 m，实际执行公式为 `1+alpha×(1/(beta+d)−1/(beta+soft_radius))`，距离不小于 soft_radius 时为 1。机器人半径按用户指定统一为 0.30 m，另计 safety_margin=0.01 m 和 resolution×grid_margin_factor（0.05×0.4=0.02 m）。2026 原图量测、限制及验证见 [rmuc2026_esdf_tuning.md](rmuc2026_esdf_tuning.md)。RViz `esdf_rviz_plugin/Heatmap` 使用 bit-nav 的原始距离、自动范围与原生 Rainbow 映射，透明度 0.6，保留纹理栅格。近红，经黄、绿、青、蓝，远端紫；显示不参与规划。详情见 [bit_nav_esdf_display.md](bit_nav_esdf_display.md)。
 
@@ -56,3 +56,5 @@ python3 src/map_server/test/test_ros_integration.py \
 已有 ROS 合成回放使用 hxy 的 rmuc_2027 PCD/PGM（历史兼容验证），当前启动与新增 2026 原图回归使用 rmuc_2026，Depth 为空；输入点云和雷达为测试消息。真实 Gazebo 验证须另外检查定位、来源健康、规划和速度闭环，不能由回放结果代替。
 
 当前安全和栅格余量调整及验证见 [clearance_margin_adjustment.md](clearance_margin_adjustment.md)。
+
+当前临时采用静态导航并启用 GICP 重定位，Gazebo 使用下载目录的 rmuc_2027.stl；PGM/PCD 保持 2026 资源。详情见 [static_navigation_gicp.md](static_navigation_gicp.md)。

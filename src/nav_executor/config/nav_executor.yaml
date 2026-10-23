@@ -2,8 +2,8 @@ map_client:
   ros__parameters:
     global_frame: map
     robot_base_frame: base_link_fake
-    robot_radius: 0.43
-    require_cloud: true
+    robot_radius: 0.3
+    require_cloud: false
     require_radar: false
     map_timeout: 1.0
     transform_tolerance: 0.5

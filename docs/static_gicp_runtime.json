@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "static_cells_compared": 174900,
+  "fused_equals_static": true,
+  "cloud_obstacle_subscription": false,
+  "radar_obstacle_subscriptions": false,
+  "map_odom_authority": "small_gicp_localization_node",
+  "manual_map_odom_publisher_running": false,
+  "tf_publisher_nodes": [
+    "fake_baselink",
+    "laserMapping",
+    "robot_state_publisher",
+    "small_gicp_localization_node"
+  ],
+  "map_odom_transforms_in_sample": 37,
+  "registered_cloud_frames": [
+    "odom"
+  ],
+  "registered_cloud_messages": 39,
+  "gicp_cloud_subscription": true,
+  "unchanged_assets_sha256": {
+    "nav/src/bringup/map/rmuc_2026.pgm": "effa57cda55399b668fd17422e90248f405565d3883e29db6fdbd26400460e17",
+    "nav/src/bringup/map/rmuc_2026.pcd": "4180f074d4d7916d5eaa66ef9f9a02f83223c9c053bd2582666f24dc1c58343a"
+  }
+}
