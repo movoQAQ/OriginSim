@@ -1,5 +1,7 @@
 # 栅格热力图、地图一致性与跟踪修正（2026-10-22）
 
+> 显示部分为历史记录，已按用户指定改为 bit-nav 距离 Rainbow，当前实现见 [bit_nav_esdf_display.md](bit_nav_esdf_display.md)。控制修复记录仍有效。
+
 - 新增 esdf_rviz_plugin/Heatmap，继承 RViz MapDisplay 纹理栅格绘制，使用 TDT 实际代价转图像思路与标准 JET 青蓝/绿/黄/红色带。`/map_server/esdf_grid` 只供显示：cost=1 为浅蓝，有限软代价按固定 cost=1..2 映射，硬碰撞为红。规划读取原始浮点距离与代价。实现参考 ROS 2 RViz MapDisplay（https://github.com/ros2/rviz/blob/jazzy/rviz_default_plugins/src/rviz_default_plugins/displays/map/map_display.cpp）。
 - 活动/原始路径深蓝，平滑路径紫色；Path 使用 transient-local。路径在真实失败或新目标撤销时仍会清空，不保留假的成功路径。
 - MapClient 用发布版本水位确认消息，暂存尚未被状态确认的新数组；正常跨 Topic 到达间隔不会撤销可用视图。缺失数组持续超过 map_timeout、错误健康状态、跨生产者拼接仍拒绝运动。暂存仅共享只读缓冲，不复制地图数组。

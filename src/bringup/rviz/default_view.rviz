@@ -177,10 +177,10 @@ Visualization Manager:
       Value: /TopoPlanner/connector_debug_markers
     Value: true
   - Class: esdf_rviz_plugin/Heatmap
-    Name: ESDF cost heatmap
+    Name: ESDF distance (bit-nav)
     Enabled: true
     Value: true
-    Alpha: 0.85
+    Alpha: 0.6
     Draw Behind: false
     Color Scheme: raw
     Topic:

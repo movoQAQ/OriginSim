@@ -1,5 +1,7 @@
 # TDT 代价图显示与锐角跟踪修正（2026-10-23）
 
+> 显示部分为历史记录，已按用户指定改为 bit-nav 距离 Rainbow，当前实现见 [bit_nav_esdf_display.md](bit_nav_esdf_display.md)。控制修复记录仍有效。
+
 ## 可视化依据
 
 参考 [T-DT-Algorithm-2026/tdt-nav-kit 的 YAstar::getCostMapImage](https://github.com/T-DT-Algorithm-2026/tdt-nav-kit/blob/814d5ce0237acc7faa8c070e5c5e61e2ddc81996/src/YAstar/yastar.cpp)。上游直接将真实浮点 costMap 限幅为图像，并没有一套彩色 ESDF 公式；本项目采用这个“实际代价转图像”的思路，再用标准 OpenCV JET 查表着色，不将自己生成的彩色表冒称为 TDT 原版。

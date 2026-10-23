@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "map": "/home/lyu/hxy/nav/install/bringup/share/bringup/map/rmuc_2026.yaml",
+  "robot_radius_m": 0.3,
+  "depth_enabled": false,
+  "static_pcd": "/home/lyu/hxy/nav/install/bringup/share/bringup/map/rmuc_2026.pcd",
+  "cells_compared": 174900,
+  "finite_cells": 174900,
+  "minimum_distance_m": 0.0,
+  "maximum_distance_m": 2.25,
+  "grid_matches_distance_field": true,
+  "palette": "RViz native Rainbow, Invert Rainbow=false",
+  "alpha": 0.6
+}
