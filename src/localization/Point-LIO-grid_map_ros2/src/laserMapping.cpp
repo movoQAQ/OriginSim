@@ -12,6 +12,7 @@
 #include <nav_msgs/msg/path.hpp>
 
 #include "li_initialization.h"
+#include "corrected_velocity.hpp"
 
 using namespace std;
 
@@ -43,6 +44,17 @@ V3D euler_cur;
 nav_msgs::msg::Path path;
 nav_msgs::msg::Odometry odomAftMapped;
 geometry_msgs::msg::PoseStamped msg_body_pose;
+
+bool predict_imu_odometry = false;
+std::deque<sensor_msgs::msg::Imu> prediction_imus;
+struct PredictionAnchor {
+  bool valid{false};
+  double stamp{0};
+  Eigen::Vector3d p, v, bg, ba, gravity;
+  Eigen::Quaterniond q;
+} prediction_anchor;
+double last_prediction_stamp = 0;
+CorrectedVelocity corrected_output_velocity;
 
 auto LOGGER = rclcpp::get_logger("laserMapping");
 
@@ -269,6 +281,7 @@ void publish_odometry(
   const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr & pubOdomAftMapped,
   std::shared_ptr<tf2_ros::TransformBroadcaster> & tf_br)
 {
+  if (predict_imu_odometry) return;
   odomAftMapped.header.frame_id = "odom";
   odomAftMapped.child_frame_id = "aft_mapped";
   if (publish_odometry_without_downsample) {
@@ -321,6 +334,7 @@ int main(int argc, char ** argv)
   executor.add_node(nh);
 
   readParameters(nh);
+  predict_imu_odometry = nh->declare_parameter("odometry.predict_with_imu", false);
   std::cout << "lidar_type: " << lidar_type << '\n';
   ivox_ = std::make_shared<IVoxType>(ivox_options_);
 
@@ -382,7 +396,17 @@ int main(int argc, char ** argv)
       [](const sensor_msgs::msg::PointCloud2::SharedPtr msg) { standard_pcl_cbk(msg); });
   }
   auto sub_imu =
-    nh->create_subscription<sensor_msgs::msg::Imu>(imu_topic, rclcpp::SensorDataQoS(), imu_cbk);
+    nh->create_subscription<sensor_msgs::msg::Imu>(imu_topic, rclcpp::SensorDataQoS(),
+      [](sensor_msgs::msg::Imu::ConstSharedPtr msg) {
+        imu_cbk(msg);
+        if (predict_imu_odometry) {
+          auto sample = *msg;
+          sample.header.stamp = get_ros_time(get_time_sec(msg->header.stamp) -
+            timediff_imu_wrt_lidar - time_lag_IMU_wtr_lidar);
+          prediction_imus.push_back(sample);
+          while (prediction_imus.size() > 600) prediction_imus.pop_front();
+        }
+      });
   auto pub_laser_cloud_full_res =
     nh->create_publisher<sensor_msgs::msg::PointCloud2>("cloud_registered", 1000);
   auto pub_laser_cloud_full_res_body =
@@ -960,6 +984,36 @@ int main(int argc, char ** argv)
       // euler_cur = RotMtoEuler(rot_cur_lidar);
       // geoQuat = tf::createQuaternionMsgFromRollPitchYaw
       //                     (euler_cur(0), euler_cur(1), euler_cur(2));
+      // Retain a corrected filter state. High-rate output propagates a COPY,
+      // never advances the LiDAR filter or reuses a correction twice.
+      if (predict_imu_odometry) {
+        const auto previous_prediction_anchor = prediction_anchor;
+        prediction_anchor.valid = true;
+        prediction_anchor.stamp = lidar_end_time;
+        if (!use_imu_as_input) {
+          prediction_anchor.p = kf_output.x_.pos;
+          prediction_anchor.v = kf_output.x_.vel;
+          prediction_anchor.q = Eigen::Quaterniond(kf_output.x_.rot);
+          prediction_anchor.bg = kf_output.x_.bg;
+          prediction_anchor.ba = kf_output.x_.ba;
+          prediction_anchor.gravity = kf_output.x_.gravity;
+        } else {
+          prediction_anchor.p = kf_input.x_.pos;
+          prediction_anchor.v = kf_input.x_.vel;
+          prediction_anchor.q = Eigen::Quaterniond(kf_input.x_.rot);
+          prediction_anchor.bg = kf_input.x_.bg;
+          prediction_anchor.ba = kf_input.x_.ba;
+          prediction_anchor.gravity = kf_input.x_.gravity;
+        }
+        prediction_anchor.v = corrected_output_velocity.update(
+          prediction_anchor.stamp, prediction_anchor.p, prediction_anchor.v);
+        if (previous_prediction_anchor.valid) {
+          const double dt = std::max(0.0, prediction_anchor.stamp - previous_prediction_anchor.stamp);
+          const double alpha = 1.0 - std::exp(-dt / 0.5);
+          prediction_anchor.v = previous_prediction_anchor.v +
+            alpha * (prediction_anchor.v - previous_prediction_anchor.v);
+        }
+      }
       /******* Publish odometry downsample *******/
       if (!publish_odometry_without_downsample) {
         publish_odometry(pub_odom_aft_mapped, tf_broadcaster);
@@ -1017,6 +1071,65 @@ int main(int argc, char ** argv)
           }
         }
         dump_lio_state_to_log(fp);
+      }
+    }
+    if (predict_imu_odometry && prediction_anchor.valid && !prediction_imus.empty()) {
+      auto predicted = prediction_anchor;
+      double stamp = predicted.stamp;
+      bool contiguous = true;
+      for (const auto & imu : prediction_imus) {
+        const double next = get_time_sec(imu.header.stamp);
+        if (next <= stamp) continue;
+        const double dt = next - stamp;
+        if (dt > 0.05 || next - predicted.stamp > 1.0) {contiguous = false; break;}
+        Eigen::Vector3d gyro(imu.angular_velocity.x, imu.angular_velocity.y, imu.angular_velocity.z);
+        Eigen::Vector3d acc(imu.linear_acceleration.x, imu.linear_acceleration.y, imu.linear_acceleration.z);
+        gyro -= predicted.bg;
+        acc = predicted.q * (acc * G_m_s2 / acc_norm - predicted.ba) + predicted.gravity;
+        // Use the corrected LiDAR velocity as a short constant-velocity prior.
+        // Integrating raw acceleration through ramps amplifies bias/gravity
+        // errors. Gyro still propagates attitude; correction age is bounded.
+        predicted.p += predicted.v * dt;
+        const double angle = gyro.norm() * dt;
+        if (angle > 1e-12) predicted.q = (predicted.q *
+          Eigen::Quaterniond(Eigen::AngleAxisd(angle, gyro.normalized()))).normalized();
+        stamp = next;
+      }
+      // Fresh IMU and bounded LiDAR correction age are both mandatory. Stopped
+      // streams cannot be hidden by restamping an old pose with the current clock.
+      if (contiguous && stamp > last_prediction_stamp + 0.019 &&
+          nh->now().seconds() - stamp >= -0.1 && nh->now().seconds() - stamp < 0.1 &&
+          predicted.p.allFinite() && predicted.v.allFinite()) {
+        nav_msgs::msg::Odometry msg;
+        msg.header.frame_id = "odom";
+        msg.child_frame_id = "aft_mapped";
+        msg.header.stamp = get_ros_time(stamp);
+        msg.pose.pose.position.x = predicted.p.x();
+        msg.pose.pose.position.y = predicted.p.y();
+        msg.pose.pose.position.z = predicted.p.z();
+        msg.pose.pose.orientation.x = predicted.q.x();
+        msg.pose.pose.orientation.y = predicted.q.y();
+        msg.pose.pose.orientation.z = predicted.q.z();
+        msg.pose.pose.orientation.w = predicted.q.w();
+        const auto velocity = predicted.q.conjugate() * predicted.v;
+        msg.twist.twist.linear.x = velocity.x();
+        msg.twist.twist.linear.y = velocity.y();
+        msg.twist.twist.linear.z = velocity.z();
+        const auto & imu = prediction_imus.back();
+        msg.twist.twist.angular.x = imu.angular_velocity.x - predicted.bg.x();
+        msg.twist.twist.angular.y = imu.angular_velocity.y - predicted.bg.y();
+        msg.twist.twist.angular.z = imu.angular_velocity.z - predicted.bg.z();
+        pub_odom_aft_mapped->publish(msg);
+        if (tf_send_en) {
+          geometry_msgs::msg::TransformStamped t;
+          t.header = msg.header; t.child_frame_id = msg.child_frame_id;
+          t.transform.translation.x = predicted.p.x();
+          t.transform.translation.y = predicted.p.y();
+          t.transform.translation.z = predicted.p.z();
+          t.transform.rotation = msg.pose.pose.orientation;
+          tf_broadcaster->sendTransform(t);
+        }
+        last_prediction_stamp = stamp;
       }
     }
     rate.sleep();

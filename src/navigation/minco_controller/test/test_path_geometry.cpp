@@ -91,3 +91,14 @@ TEST(PathGeometry,GridSpacedAcuteCornerDoesNotStallAtCommandDeadzone){
  for(int i=1;i<=40;++i){point.pos={2-.035*i,.035*i};points.push_back(point);}
  followWithSwerve(points);
 }
+
+TEST(PathGeometry,SpatialPreviewEscapesTinyGridEntryCornerWithoutChangingPath) {
+ PathTrajectory path; std::vector<ReferencePoint> points(3);
+ points[0].pos={.04,0};points[1].pos={.05,-.01};points[2].pos={.05,-4};
+ path.setPath(points,.5,.5,1,false);
+ const auto ahead=path.positionAhead(0,.8);
+ EXPECT_NEAR(ahead.x(),.05,1e-9); EXPECT_LT(ahead.y(),-.75);
+ EXPECT_NEAR(path.positionAhead(0,0).x(),.04,1e-9);
+ EXPECT_NEAR(path.positionAhead(path.duration(),1).y(),-4,1e-9);
+ EXPECT_THROW(path.positionAhead(0,-1),std::invalid_argument);
+}

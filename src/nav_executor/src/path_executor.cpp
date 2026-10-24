@@ -356,7 +356,7 @@ public:
       if (!costmap_->getRobotPose(pose) || !finitePose(pose.pose)) throw std::runtime_error("Recovery pose missing");
       checkStamp(pose.header.stamp, tf_timeout_, "Recovery TF");
       const auto speed = readSpeed("recovery");
-      const double t = std::chrono::duration<double>(TaskManager::Clock::now().time_since_epoch()).count();
+      const double t = clock_->now().seconds();
       const double yaw = tf2::getYaw(pose.pose.orientation);
       const bool demand = t-last_command_time_ < recovery_config_.maximum_sample_gap &&
         std::hypot(last_command_.linear.x,last_command_.linear.y) >= 0.1;
@@ -515,7 +515,7 @@ public:
         completion_wait_since_.reset();
       }
       last_command_=command.twist;
-      last_command_time_=std::chrono::duration<double>(TaskManager::Clock::now().time_since_epoch()).count();
+      last_command_time_=clock_->now().seconds();
       const double yaw=tf2::getYaw(pose.pose.orientation);
       last_world_vx_=std::cos(yaw)*command.twist.linear.x-std::sin(yaw)*command.twist.linear.y;
       last_world_vy_=std::sin(yaw)*command.twist.linear.x+std::cos(yaw)*command.twist.linear.y;

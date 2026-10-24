@@ -142,4 +142,11 @@ ament_export_dependencies(
   PCL
 )
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_corrected_velocity test/test_corrected_velocity.cpp)
+  target_include_directories(test_corrected_velocity PRIVATE include ${EIGEN3_INCLUDE_DIR})
+  ament_target_dependencies(test_corrected_velocity grid_map_core)
+endif()
+
 ament_package()

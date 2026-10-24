@@ -1,0 +1,94 @@
+{
+  "method": "Translation only: original PGM free-facing boundaries to existing world-frame PCD; internal region x=(1,28),y=(.5,14.5); residuals clipped at .6m for fitting; nearest surface is diagnostic, not certified correspondence.",
+  "pgm_sha256": "effa57cda55399b668fd17422e90248f405565d3883e29db6fdbd26400460e17",
+  "pcd_sha256": "4180f074d4d7916d5eaa66ef9f9a02f83223c9c053bd2582666f24dc1c58343a",
+  "resolution_m": 0.05,
+  "rotation_rad": 0,
+  "boundary_points": 5334,
+  "height_sensitivity": [
+    {
+      "height_band_m": [
+        0.5,
+        0.9
+      ],
+      "translation_xy_m": [
+        -0.07915400981903087,
+        0.5160296916961669
+      ],
+      "before": {
+        "mean_m": 0.6728777579188443,
+        "median_m": 0.4257346591481593,
+        "p90_m": 1.950000000000001,
+        "within_10cm": 0.24390701162354705,
+        "clipped_rms_m": 0.43703072212487515
+      },
+      "after": {
+        "mean_m": 0.5936601186449757,
+        "median_m": 0.23728432144919173,
+        "p90_m": 2.2330147650755627,
+        "within_10cm": 0.4175103112110986,
+        "clipped_rms_m": 0.38575433987302254
+      }
+    },
+    {
+      "height_band_m": [
+        0.9,
+        1.2
+      ],
+      "translation_xy_m": [
+        -0.11022659301757817,
+        0.519099426269531
+      ],
+      "before": {
+        "mean_m": 1.901116457220101,
+        "median_m": 1.8,
+        "p90_m": 3.9183063943494782,
+        "within_10cm": 0.0719910011248594,
+        "clipped_rms_m": 0.5518035288222588
+      },
+      "after": {
+        "mean_m": 1.898203428617969,
+        "median_m": 1.6825418971912223,
+        "p90_m": 4.0502551375674205,
+        "within_10cm": 0.08492688413948256,
+        "clipped_rms_m": 0.5431480137393272
+      }
+    },
+    {
+      "height_band_m": [
+        1.2,
+        1.5
+      ],
+      "translation_xy_m": [
+        -0.07142027258872993,
+        0.5167412519454947
+      ],
+      "before": {
+        "mean_m": 2.0768652498037814,
+        "median_m": 2.0,
+        "p90_m": 3.997545996441146,
+        "within_10cm": 0.03412073490813648,
+        "clipped_rms_m": 0.5690969961931932
+      },
+      "after": {
+        "mean_m": 2.066997668678863,
+        "median_m": 1.9167445947120658,
+        "p90_m": 4.108623828493301,
+        "within_10cm": 0.05211848518935133,
+        "clipped_rms_m": 0.5617872094013986
+      }
+    }
+  ],
+  "candidate_origin_xy_m": [
+    -0.1,
+    0.5
+  ],
+  "limitation": "Translation cannot correct shape or scale differences. Alignment residuals do not certify traversability.",
+  "applied_origin_xyz_m": [
+    -0.1,
+    0.5,
+    0
+  ],
+  "pgm_unchanged": true,
+  "active_yaml_sha256": "db76c75abe3f367059e54eba44393c99e0a617b4ba618f9fda0c704dbc464673"
+}

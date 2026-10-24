@@ -29,6 +29,10 @@ rclcpp_components_register_node(${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_ground_heading test/test_ground_heading.cpp)
+  target_include_directories(test_ground_heading PRIVATE src)
+  ament_target_dependencies(test_ground_heading tf2)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
   # comment the line when a copyright and license is added to all source files

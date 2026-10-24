@@ -34,6 +34,8 @@ private:
   PathTrajectory trajectory_;
   std::string plan_frame_;
   double reference_speed_{0.6}, reference_acceleration_{1.0}, reference_yaw_rate_{1.0};
+  double corridor_speed_limit_{0.25}, corridor_clearance_speed_gain_{2.5};
+  double corridor_cross_track_gain_{1.0}, corridor_max_lateral_speed_{0.06};
   double control_delay_{0.25}, output_delay_{0.025};
   double deadzone_{0.02}, velocity_noise_threshold_{0.03}, fixed_wz_{0.0};
   double obstacle_smoothing_distance_{0.2};

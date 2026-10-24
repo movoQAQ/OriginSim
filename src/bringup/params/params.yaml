@@ -78,13 +78,13 @@ nav_executor:
     goal_tolerance: 0.05
     retry_delay: 1.0
     planning_timeout: 5.0
-    controller_frequency: 50.0
+    controller_frequency: 20.0
     odom_topic: "/odom"
     cmd_vel_topic: "/cmd_vel"
     odom_timeout: 0.5
     tf_timeout: 0.5
     control_timeout: 0.2
-    xy_goal_tolerance: 0.3
+    xy_goal_tolerance: 0.15
     yaw_goal_tolerance: 3.14
     stopped_velocity_tolerance: 0.05
     recovery:
@@ -116,7 +116,7 @@ nav_executor:
         confirmations: 3
         maximum_sample_gap: 1.0
     path_smoother:
-      enabled: true            # 全路径联合 Minimum Jerk 平滑，失败安全回退
+      enabled: false           # Raw-path navigation; smoother disabled
       timeout: 0.3             # s，受全局规划总超时共同限制
       control_spacing: 0.4     # m，短共线控制点合并间距
       corridor_range: 1.0      # m，方形安全走廊最大范围
@@ -133,13 +133,13 @@ nav_executor:
       exit_debounce: 0.2       # s, continuously outside before release
       pose_timeout: 0.5        # s, stale/missing TF preserves command and retained regions
     MPC:
-      dt: 0.02
-      horizon: 25
+      dt: 0.05
+      horizon: 10
       Q: [5.0, 5.0, 2.0]
       R: [1.0, 1.0, 0.5]
       control_delta_weight: [2.0, 2.0, 0.5]
       q_along: 3.0
-      q_cross: 12.0
+      q_cross: 40.0
       obstacle_weight: 30.0
       obstacle_smoothing_distance: 0.2
       obstacle_trust_region: 0.15
@@ -159,8 +159,8 @@ nav_executor:
       alpha_max: 4.0
       max_working_set_recalculations: 200
       eps_regularization: 1.0e-09
-      reference_speed: 1.2
-      reference_acceleration: 1.0
+      reference_speed: 0.5
+      reference_acceleration: 0.5
       reference_yaw_rate: 1.0  # Also limits the travel-direction rate for swerve steering.
       control_delay_compensation: 0.05
       output_delay: 0.025
@@ -168,7 +168,7 @@ nav_executor:
       fixed_wz: 0.0
       deadzone_speed_threshold: 0.02
       velocity_noise_threshold: 0.03
-      collision_margin: 0.02
+      collision_margin: 0.01  # Same physical safety margin as MapServer; grid margin is separate.
 
 
 topology_planner:

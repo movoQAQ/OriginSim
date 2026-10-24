@@ -539,7 +539,12 @@ public:
           return;
         }
         const auto now = TaskManager::Clock::now();
-        const auto event = monitor_->observe(tasks_.plan().full_path, identity, pose, command, now);
+        // Physical progress must use the same time domain as velocity and pose.
+        // Planning deadlines and input receive freshness remain on steady time.
+        const auto motion_now = TaskManager::Clock::time_point(
+          std::chrono::duration_cast<TaskManager::Clock::duration>(
+            std::chrono::nanoseconds(this->now().nanoseconds())));
+        const auto event = monitor_->observe(tasks_.plan().full_path, identity, pose, command, motion_now);
         if (event) {
           handleReplanEvent(*event, now);
         }
