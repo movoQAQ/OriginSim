@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <gz/common/Console.hh>
+#include <gz/math/Vector3.hh>
 #include <gz/msgs/Utility.hh>
 #include <gz/msgs/odometry.pb.h>
 #include <gz/msgs/twist.pb.h>
@@ -18,6 +19,7 @@
 #include <gz/sim/components/JointPosition.hh>
 #include <gz/sim/components/JointVelocityCmd.hh>
 #include <gz/transport/Node.hh>
+#include "PassiveAngularDamping.hh"
 
 namespace gz
 {
@@ -39,6 +41,17 @@ public:
     this->wheelbase = sdf->Get<double>("wheelbase", this->wheelbase).first;
     this->track = sdf->Get<double>("track_width", this->track).first;
     this->timeout = sdf->Get<double>("command_timeout", 0.5).first;
+    this->angularDamping = sdf->Get<math::Vector3d>(
+        "body_angular_damping", math::Vector3d::Zero).first;
+    for (double value : {this->angularDamping.X(), this->angularDamping.Y(),
+        this->angularDamping.Z()})
+    {
+      if (!std::isfinite(value) || value < 0 || value > 2000)
+      {
+        gzerr << "SwerveDrive: body angular damping must be finite in [0,2000] Nms/rad\n";
+        return;
+      }
+    }
     this->wheelAcceleration = sdf->Get<double>("wheel_acceleration", 15.0).first;
     this->steeringGain = sdf->Get<double>("steering_gain", 6.0).first;
     this->steeringVelocity = sdf->Get<double>("steering_velocity", 3.0).first;
@@ -106,6 +119,19 @@ public:
       }
       return;
     }
+    // Passive body-frame rotational drag: tau dot omega = -sum(c_i*w_i^2).
+    // It dissipates angular energy and has no target attitude or linear force.
+    if (this->angularDamping.SquaredLength() > 0)
+    {
+      const auto pose = this->chassis.WorldPose(ecm);
+      const auto angular = this->chassis.WorldAngularVelocity(ecm);
+      if (pose && angular)
+      {
+        this->chassis.AddWorldWrench(ecm, math::Vector3d::Zero,
+            originsim::PassiveAngularDamping(pose->Rot(), *angular,
+                this->angularDamping));
+      }
+    }
     msgs::Twist command;
     {
       std::lock_guard<std::mutex> lock(this->mutex);
@@ -121,11 +147,6 @@ public:
         command = this->target;
     }
     const double pi = std::acos(-1.0);
-    const bool idle = std::hypot(command.linear().x(), command.linear().y()) +
-        0.5 * std::hypot(this->wheelbase, this->track) *
-        std::abs(command.angular().z()) <= 0.005;
-    const bool stopped = std::all_of(this->wheelSpeeds.begin(), this->wheelSpeeds.end(),
-        [](double speed) { return std::abs(speed) < 1e-3; });
     for (size_t i = 0; i < this->wheels.size(); ++i)
     {
       const auto *position = ecm.Component<components::JointPosition>(this->steering[i]);
@@ -152,12 +173,6 @@ public:
       else
       {
         speed = 0;
-        if (idle && stopped)
-        {
-          // Brake before parking tangent to a circle around the chassis center.
-          // Modulo pi selects the nearest equivalent wheel orientation.
-          this->headings[i] = angle + std::remainder(std::atan2(x, -y) - angle, pi);
-        }
         error = std::remainder(this->headings[i] - angle, 2 * pi);
       }
       const double steeringTarget = std::abs(error) < 0.002 ? 0 :
@@ -167,7 +182,7 @@ public:
           this->steeringAcceleration * dt);
       SetVelocity(ecm, this->steering[i], this->steeringSpeeds[i]);
       // Limit actuator acceleration as well as projecting onto the rolling direction.
-      this->wheelSpeeds[i] = Slew(this->wheelSpeeds[i], speed * std::cos(error),
+      this->wheelSpeeds[i] = Slew(this->wheelSpeeds[i], (std::abs(error) < 0.15 ? speed * std::cos(error) : 0.0),
           this->wheelAcceleration * dt);
       SetVelocity(ecm, this->wheels[i], this->wheelSpeeds[i]);
     }
@@ -177,6 +192,9 @@ public:
   {
     if (!this->ready || info.paused)
       return;
+    if (info.simTime >= this->lastOdom && info.simTime - this->lastOdom < std::chrono::milliseconds(20))
+      return;
+    this->lastOdom = info.simTime;
     const auto pose = this->chassis.WorldPose(ecm);
     const auto linear = this->chassis.WorldLinearVelocity(ecm);
     const auto angular = this->chassis.WorldAngularVelocity(ecm);
@@ -231,13 +249,14 @@ private:
   std::array<double, 4> wheelSpeeds{};
   std::array<double, 4> steeringSpeeds{};
   double radius{0.0758}, wheelbase{0.5}, track{0.5}, timeout{0.5};
+  math::Vector3d angularDamping{0, 0, 0};
   double wheelAcceleration{15.0}, steeringGain{6.0};
   double steeringVelocity{3.0}, steeringAcceleration{10.0};
   bool ready{false}, pending{false};
   std::string childFrame;
   std::mutex mutex;
   msgs::Twist target;
-  std::chrono::steady_clock::duration lastCommand{};
+  std::chrono::steady_clock::duration lastCommand{}, lastOdom{};
 };
 }
 }

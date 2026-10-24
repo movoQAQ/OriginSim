@@ -72,7 +72,8 @@ void PointCloudConverter::lidarHandle(const sensor_msgs::msg::PointCloud2::Share
       continue;
     }
 
-    new_point.time = (point_id % horizon_scan_) * 0.1f / horizon_scan_;
+    // Gazebo GPU lidar is an instantaneous snapshot, not a rotating scan.
+    new_point.time = 0.0f;
 
     converted_pc->points.push_back(new_point);
   }

@@ -1,9 +1,13 @@
 import os
+import json
+import importlib.util
+import xml.etree.ElementTree as ET
 
 import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from nav2_common.launch import ReplaceString
 from sdformat_tools.xmacro4sdf import XMLMacro4sdf
@@ -11,7 +15,7 @@ from sdformat_tools.xmacro4sdf import XMLMacro4sdf
 from sdformat_tools.urdf_generator import UrdfGenerator
 
 
-def generate_launch_description():
+def spawn_robots(context):
     # Map fully qualified names to relative ones so the node's namespace can be prepended.
     # In case of the transforms (tf), currently, there doesn't seem to be a better alternative
     # https://github.com/ros/geometry2/issues/32
@@ -35,7 +39,7 @@ def generate_launch_description():
     robot_config = os.path.join(pkg_simulator, "config", "base_params.yaml")
 
     # Get spawn robot init pose
-    gz_world_path = os.path.join(pkg_simulator, "config", "gz_world.yaml")
+    gz_world_path = LaunchConfiguration("gz_world_path").perform(context)
     with open(gz_world_path) as file:
         config = yaml.safe_load(file)
         selected_world = config.get("world")
@@ -50,6 +54,18 @@ def generate_launch_description():
         # Generate SDF from xmacro
         xmacro.generate({"global_initial_color": robot["color"]})
         robot_xml = xmacro.to_string()
+
+        profile_path = LaunchConfiguration("vehicle_physics_profile").perform(context)
+        if profile_path:
+            spec = importlib.util.spec_from_file_location(
+                "vehicle_physics_profile", os.path.join(pkg_simulator, "launch", "vehicle_physics_profile.py"))
+            helper = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(helper)
+            with open(profile_path) as profile_file:
+                profile = json.load(profile_file)
+            robot_doc = ET.fromstring(robot_xml)
+            helper.apply_profile(robot_doc, profile)
+            robot_xml = ET.tostring(robot_doc, encoding="unicode")
 
         # Generate URDF from SDF
         urdf_generator = UrdfGenerator()
@@ -136,4 +152,14 @@ def generate_launch_description():
         ld.add_action(robot_ign_bridge)
         ld.add_action(set_performer_service)
 
-    return ld
+    return list(ld.entities)
+
+
+def generate_launch_description():
+    simulator = get_package_share_directory("rmu_gazebo_simulator")
+    return LaunchDescription([
+        DeclareLaunchArgument("gz_world_path", default_value=os.path.join(simulator, "config", "gz_world.yaml")),
+        DeclareLaunchArgument("vehicle_physics_profile", default_value="",
+                              description="Optional JSON for robot inertials, friction, wheelbase and passive drag"),
+        OpaqueFunction(function=spawn_robots),
+    ])
