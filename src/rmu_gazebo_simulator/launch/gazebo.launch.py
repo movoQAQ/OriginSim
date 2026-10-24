@@ -88,7 +88,7 @@ def generate_launch_description():
             {
                 "pcd_topic": "livox/lidar/pointcloud",
                 "n_scan": 32,
-                "horizon_scan": 1875,
+                "horizon_scan": 720,
                 "ang_bottom": 7.0,
                 "ang_res_y": 1.84375,  # (7+52) / 32
             }

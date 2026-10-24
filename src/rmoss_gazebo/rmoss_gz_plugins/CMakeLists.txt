@@ -49,6 +49,9 @@ install(TARGETS MecanumDrive2 SwerveDrive ProjectileShooter LightBarController
 ament_environment_hooks("${CMAKE_CURRENT_SOURCE_DIR}/env-hooks/gazebo.dsv.in")
 
 if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_passive_angular_damping test/test_passive_angular_damping.cpp)
+  target_link_libraries(test_passive_angular_damping gz-sim8::gz-sim8)
   # no lint test
   # find_package(ament_lint_auto REQUIRED)
   # ament_lint_auto_find_test_dependencies()

@@ -1,0 +1,21 @@
+{
+  "name": "low_cg_v14_pitch_inertia_matched_drag",
+  "chassis_mass": 15.0,
+  "chassis_com_z": 0.02,
+  "chassis_inertia": [
+    0.7,
+    2.0,
+    2.5
+  ],
+  "reference_link_mass": 0.001,
+  "upper_assembly_mass": 0.25,
+  "chassis_friction": 0.15,
+  "chassis_angular_decay": 0.0,
+  "chassis_linear_decay": 0.0,
+  "wheelbase": 0.66,
+  "body_angular_damping": [
+    500.0,
+    1500.0,
+    2.0
+  ]
+}

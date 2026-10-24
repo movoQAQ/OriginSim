@@ -8,6 +8,9 @@
     <xmacro_include uri="model://rmua19_standard_robot/rmua19_standard_robot.def.xmacro" />
     <!--property defination-->
     <xmacro_define_value name="global_initial_color" value="none" />
+    <!-- CPU-capable snapshot lidar profile; override these values on a GPU host. -->
+    <xmacro_define_value name="global_lidar_update_rate" value="10" />
+    <xmacro_define_value name="global_lidar_samples" value="720" />
     <xmacro_define_value name="global_armor_sticker_type" value="num3" />
     <!--pb2025_sentry_robot model-->                                    
     <model name="pb2025_sentry_robot" canonical_link="aft_mapped">
@@ -18,7 +21,7 @@
         <!--rplidar a2-->
         <!-- <xmacro_block name="rplidar_a2" prefix="front_" parent="base_link" pose="0.155 0 0.1 0 0 0" update_rate="10" samples="400" visualize="true"/> -->
         <!--livox-->
-        <xmacro_block name="livox_frame" prefix="" parent="aft_mapped" pose="0.0 0.0 0.0 0.0 0.0 0.0" update_rate="100" samples="1875"/>
+        <xmacro_block name="livox_frame" prefix="" parent="aft_mapped" pose="0.0 0.0 0.0 0.0 0.0 0.0" update_rate="${global_lidar_update_rate}" samples="${global_lidar_samples}"/>
         <!--industrial camera-->
         <!-- <xmacro_block name="industrial_camera" prefix="front_" parent="gimbal_pitch" pose="0.1 0 0.045 0 0 0" update_rate="30" horizontal_fov="1" width="1920" height="1080"/> -->
 
