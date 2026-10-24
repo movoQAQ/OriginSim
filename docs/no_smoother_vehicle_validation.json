@@ -1,0 +1,137 @@
+{
+  "robot_collision_shapes_sensor_properties_joint_structure_unchanged": true,
+  "wheelbase_m": 0.66,
+  "track_width_m": 0.5,
+  "allowed_changed_properties": [
+    "inertial mass, COM, inertia",
+    "chassis velocity_decay declaration",
+    "robot collision surface friction and restitution",
+    "paired longitudinal axle positions and drive kinematic wheelbase",
+    "passive angular drag on the robot chassis only"
+  ],
+  "active_scene_resources_unchanged": {
+    "/workspace/originsim-gazebo/src/rmu_gazebo_simulator/resource/worlds/rmuc_2026_world.sdf": "9d0d6fe7555691bf3429be9ac406662182ebf581f32bf7614878039af01a4571",
+    "/workspace/originsim-gazebo/src/rmu_gazebo_simulator/resource/models/rmuc_2026/model.sdf": "026c5ec8bd9fee5fec3f08195381a9368fb01015ddd1dcb1f08a6ad73d3fa087",
+    "/workspace/originsim-gazebo/src/rmu_gazebo_simulator/resource/models/rmuc_2026/meshes/rmuc_2026.stl": "08758108cc78bf64ecc822533a2074ec120287e0eea7bad64188633d92d36daa",
+    "/workspace/originsim-gazebo/src/rmu_gazebo_simulator/resource/models/speed_bump/model.sdf": "4c4b503b4ae649e6f1b2d16be7c1c8c9014448a94f4544c4e711b881419d93a1",
+    "/workspace/originsim-gazebo/src/rmu_gazebo_simulator/resource/models/speed_bump/meshes/speed_bump.stl": "96eb1caeefe2b62753a70f78acde253580886a663450fd8425ccb0e52342dedf"
+  },
+  "original_pgm_sha256": "effa57cda55399b668fd17422e90248f405565d3883e29db6fdbd26400460e17",
+  "original_pcd_sha256": "4180f074d4d7916d5eaa66ef9f9a02f83223c9c053bd2582666f24dc1c58343a",
+  "map_yaml_origin": [
+    -0.1,
+    0.5,
+    0
+  ],
+  "unchanged_from_original_git_HEAD": {
+    "/workspace/originsim-gazebo/src/rmu_gazebo_simulator/resource/worlds/rmuc_2026_world.sdf": {
+      "git_blob": "d3c2c15311bccb35604021b8b75dea472d2dc81b",
+      "sha256": "9d0d6fe7555691bf3429be9ac406662182ebf581f32bf7614878039af01a4571"
+    },
+    "/workspace/originsim-gazebo/src/rmu_gazebo_simulator/resource/models/rmuc_2026/model.sdf": {
+      "git_blob": "45a0b3f4eb206b98f134e84637c16a5bf48bbb44",
+      "sha256": "026c5ec8bd9fee5fec3f08195381a9368fb01015ddd1dcb1f08a6ad73d3fa087"
+    },
+    "/workspace/originsim-gazebo/src/rmu_gazebo_simulator/resource/models/rmuc_2026/meshes/rmuc_2026.stl": {
+      "git_blob": "cd75c43b82efc5a75fe579d91075a0c9d5e6944d",
+      "sha256": "08758108cc78bf64ecc822533a2074ec120287e0eea7bad64188633d92d36daa"
+    },
+    "/workspace/originsim-gazebo/src/rmu_gazebo_simulator/resource/models/speed_bump/model.sdf": {
+      "git_blob": "6153a8bd7eff7d3f5f4be6ecd2f03693e4dc2775",
+      "sha256": "4c4b503b4ae649e6f1b2d16be7c1c8c9014448a94f4544c4e711b881419d93a1"
+    },
+    "/workspace/originsim-gazebo/src/rmu_gazebo_simulator/resource/models/speed_bump/meshes/speed_bump.stl": {
+      "git_blob": "9115fc8c477cb09e5cb9e6bf8bc877a674764a77",
+      "sha256": "96eb1caeefe2b62753a70f78acde253580886a663450fd8425ccb0e52342dedf"
+    },
+    "/workspace/originsim-nav/src/bringup/map/rmuc_2026.pgm": {
+      "git_blob": "44e2a79652ba3b1ef85c9f6b8d2a9acedc0d380c",
+      "sha256": "effa57cda55399b668fd17422e90248f405565d3883e29db6fdbd26400460e17"
+    },
+    "/workspace/originsim-nav/src/bringup/map/rmuc_2026.pcd": {
+      "git_blob": "e3c7f2c41f607ab9f946b79dae58f23c63f975b1",
+      "sha256": "4180f074d4d7916d5eaa66ef9f9a02f83223c9c053bd2582666f24dc1c58343a"
+    }
+  },
+  "sensor_dropout_test": {
+    "passed": true,
+    "max_command_after_0_8s": 0.0,
+    "commands_checked_after_0_8s": 25,
+    "last_odom_after_fault_s": 0.08467053599815699,
+    "simulation_advanced_s": 1.9260000000000002,
+    "test": "Freeze real LiDAR/IMU/joint-state robot bridge during translation; independent simulation clock continues.",
+    "backend": "wheel_lidar_odometry.py",
+    "profile": "tunnel_vehicle_physics.json"
+  },
+  "build": {
+    "packages": 22,
+    "log": "/workspace/tunnel-test/vehicle-final-build.log"
+  },
+  "unit_regression": {
+    "tests": 36,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "log": "/workspace/tunnel-test/vehicle-final-tests.log"
+  },
+  "source_sha256": {
+    "originsim-nav/src/bringup/launch/no_smoother_tunnels.launch.py": "99aa846e810f0d66449f1449a00c7566f89a2453b4a447994f85e64664f08c1b",
+    "originsim-nav/src/bringup/params/no_smoother_tunnels.yaml": "074301a59133f7eb2ff181e8dd344cc215e394391b7285da3184e4a569908e78",
+    "originsim-nav/src/localization/Point-LIO-grid_map_ros2/include/corrected_velocity.hpp": "8f836c4c60f8d278a33d94b8869b720a26fa84b05ad3c0f904bbb19cb3d2c93a",
+    "originsim-nav/src/localization/Point-LIO-grid_map_ros2/test/test_corrected_velocity.cpp": "e509e7ed1b41cc7754765bf8a00f8f163f82eaf931f2258de273f62002fe0316",
+    "originsim-nav/src/localization/landmark_alignment/CMakeLists.txt": "3d61160f12e890dac5b609acfba51d32cb0aa623279231d2cc27a1a3ed9df42d",
+    "originsim-nav/src/localization/landmark_alignment/README.md": "f8d5f984e7211a2055d1ee43855d383eedc78ea442a6e074c1ad058e0d02f128",
+    "originsim-nav/src/localization/landmark_alignment/landmark_alignment.py": "71afce9b8c6267fede66dcbf342ea857104266d2d7dd8686a41c504b85f64d89",
+    "originsim-nav/src/localization/landmark_alignment/package.xml": "8ee29278748656bdb3d8c2f0db371ccf39bbd2e75735908fe44e669a944d56c0",
+    "originsim-nav/src/localization/landmark_alignment/test/test_landmarks.py": "c993df226ff51e89a62ea615e7bc0f60481037adcebd22c58ef55e588e7286eb",
+    "originsim-nav/src/localization/landmark_alignment/test/test_wheel_lidar_math.py": "55a95d9ea436c21b9653d1f83bbac3437d8b2df0bb96c4578ac24bbe0ff273a0",
+    "originsim-nav/src/localization/landmark_alignment/wheel_lidar_math.py": "beaf320a0ed7177fc1abcb422df3a102c7e4e6c8036fc508faf6fca5ed3fc030",
+    "originsim-nav/src/localization/landmark_alignment/wheel_lidar_odometry.py": "5f3ec6684b1ffdff7aee7f3b34056fc02ed4e5cde5a32bf05a647c57f14c5a3f",
+    "originsim-nav/src/navigation/fake_baselink/src/ground_heading.hpp": "f11a18ea3e09d26ccb74d38cb69c646953d8791dfbde4df56f909796512848e8",
+    "originsim-nav/src/navigation/fake_baselink/test/test_ground_heading.cpp": "b235c1231d0f56d245b825a67d0a800b82e64ada4ddf3ee7acf76e209dced80b",
+    "originsim-nav/src/bringup/launch/startup.launch.py": "d849d9b6e9048a727f97992a9251fac7f43ca09a677e013efb2e35d59ec4fc6f",
+    "originsim-nav/src/bringup/map/rmuc_2026.yaml": "db76c75abe3f367059e54eba44393c99e0a617b4ba618f9fda0c704dbc464673",
+    "originsim-nav/src/bringup/package.xml": "869ed284af8b249b727714f401fe93ba9f32abb043653c4fc3a50914f6cb911a",
+    "originsim-nav/src/bringup/params/params.yaml": "fd01d9005b221cc3772036ba69658256fcfc8076a47ffc96ee90def592a5e8c4",
+    "originsim-nav/src/localization/Point-LIO-grid_map_ros2/CMakeLists.txt": "a4435ec9222d68084833021913b4740a1a98890d57d6d0dd8895c4b6d8900fb7",
+    "originsim-nav/src/localization/Point-LIO-grid_map_ros2/config/velody16.yaml": "25c82a6cfe1bd2571416969e9219a6f930139614bbc0f02a30b0eb29184aae7e",
+    "originsim-nav/src/localization/Point-LIO-grid_map_ros2/package.xml": "08c96a0cf3449ca00bbbcada5fa1c871ad4d441b5769aaa6a1e09afeb93fd9c2",
+    "originsim-nav/src/localization/Point-LIO-grid_map_ros2/src/laserMapping.cpp": "a38e00a91d1814175faef9c21ae14e7318e718c0c75bcc2fb3384cd528988c7f",
+    "originsim-nav/src/localization/Point-LIO-grid_map_ros2/src/preprocess.cpp": "82ebde803a8a843805dc1fd990d95cc329711d3e4916ba9121d170e543635ad3",
+    "originsim-nav/src/nav_executor/config/nav_executor.yaml": "aacfce316a6131dd705c67be4db3596a326ad4897ad82495724a85cd0fe6c67c",
+    "originsim-nav/src/nav_executor/include/nav_executor/route_monitor.hpp": "89f78354955c9427559b6556badd9d23d2f3f5b386b9adcec0d3906bc7abcf34",
+    "originsim-nav/src/nav_executor/src/nav_executor_node.cpp": "7bd486cb11c4aa6bfa09cb23388af96f52542278b4cf712d4bb04541be964f59",
+    "originsim-nav/src/nav_executor/src/path_executor.cpp": "0e185ee9c9f65c0226fd00fd28ec538b83a8fbe1cbca20f37443405f3204ac97",
+    "originsim-nav/src/navigation/fake_baselink/CMakeLists.txt": "f67bdf4e7f859543c7eee0b8bf97e150f78d835e736bed0d32ac483404a9fa2a",
+    "originsim-nav/src/navigation/fake_baselink/launch/fake_baselink.launch.py": "82a8a1e7d0f0080b6d444e721025dbbec9395121f132c2d82bf96a70ec18b501",
+    "originsim-nav/src/navigation/fake_baselink/package.xml": "15132d1e07428c4d114a2252858856b6ff488b8a5aed9a305f4f0e7559c25c24",
+    "originsim-nav/src/navigation/fake_baselink/src/fake_baselink.cpp": "665b9a9cb626c402f8d3c4e88ce9075c8e10d6978b521c8473295248d4722c5a",
+    "originsim-nav/src/navigation/minco_controller/include/minco_controller/minco_mpc_controller.hpp": "f19b172334212550cd9280d1c37faba90524e9bc68fa384cc31aca5c79753431",
+    "originsim-nav/src/navigation/minco_controller/include/minco_controller/path_trajectory.hpp": "ad75266fe6553bb6bb7bb1098b1ecc5dd19ddc5637471f37e523d531c5c15d59",
+    "originsim-nav/src/navigation/minco_controller/src/minco_mpc_controller.cpp": "96e632487c0d6921495564ba3f6f8869aa81e0cef218fdf95a818f11974e237b",
+    "originsim-nav/src/navigation/minco_controller/src/path_trajectory.cpp": "8c59ae88eb7d16533d3142c611500b9719e52808fa9b3117539300f208fbc41e",
+    "originsim-nav/src/navigation/minco_controller/test/test_path_geometry.cpp": "6457f83d055bd43364053f6b1c1fc0bf6d19abd1f2a302b7797b87e7748ec3b0",
+    "originsim-gazebo/src/rmoss_gazebo/rmoss_gz_plugins/plugins/swerve_drive/PassiveAngularDamping.hh": "202702c8f5bcceb0f213183692a3afe84ddda24851cb1ab82c8b03417158b5d6",
+    "originsim-gazebo/src/rmoss_gazebo/rmoss_gz_plugins/test/test_passive_angular_damping.cpp": "58c6758d27aee67f94c90ea43ded6cd0f4c5caefbed5a01f3845d961133f51e9",
+    "originsim-gazebo/src/rmu_gazebo_simulator/config/tunnel_vehicle_physics.json": "09d79b9a04f2b1c857d06494ddfa3c79f3f5455072a232811043aa3b95ae3822",
+    "originsim-gazebo/src/rmu_gazebo_simulator/launch/tunnel_sim.launch.py": "3c11c546095483bcdb0616e2fe61294f3f851f90ab2698f2d3c2adf280ec526f",
+    "originsim-gazebo/src/rmu_gazebo_simulator/launch/vehicle_physics_profile.py": "2146f379806b1a67ab3567ceed049d7ecb08da6a16454804bb5ad70d3ecb5dde",
+    "originsim-gazebo/src/ign_sim_pointcloud_tool/src/point_cloud_converter.cpp": "a5b9edcdee0d20ee37b785151f2bd2ca68464fa7c19034effaced9d901ecb476",
+    "originsim-gazebo/src/pb2025_robot_description/resource/xmacro/pb2025_sentry_robot.sdf.xmacro": "f79c0fcb9fb6509345c75bd2df376904c6a910bcc4d13fa031b4c6708c4711ab",
+    "originsim-gazebo/src/rmoss_gazebo/rmoss_gz_plugins/CMakeLists.txt": "86b09d97122b5d5fde7bf3572a2c23f28d260f7c1d5ea0a6ea37916494c79a0c",
+    "originsim-gazebo/src/rmoss_gazebo/rmoss_gz_plugins/package.xml": "050128cc2e9e0e5332e3fe8d290a0afc84f085f945fbfd0e0dc42e6ed828a425",
+    "originsim-gazebo/src/rmoss_gazebo/rmoss_gz_plugins/plugins/swerve_drive/SwerveDrive.cc": "58f28df1122174d49e1e333e287d3d10f61d9c7e1d2c5557dba96e451539f05e",
+    "originsim-gazebo/src/rmu_gazebo_simulator/launch/gazebo.launch.py": "3e02453937a9698e4e74872b1b2ee50f55feb08deb0728d9a48a0684844a89c6",
+    "originsim-gazebo/src/rmu_gazebo_simulator/launch/spawn_robots.launch.py": "f22f88a8bbf63b4563153dc0dda4b795568ae4d531fa0708fe4ff9412035e8da",
+    "originsim-gazebo/src/rmu_gazebo_simulator/package.xml": "2826ea82a7f3088c83b2c90e18c5baa0278fd7e4e624e10520cbeadf84aa0262",
+    "originsim-gazebo/src/rmu_gazebo_simulator/config/tunnel_red_bottom_spawn.yaml": "b3581af2dc0bb66f5ba28ed5f9e12c4ba60817a6583bfb4e80d7c0c7d41b1a6c"
+  },
+  "post_build_installed_smoke": {
+    "passed": true,
+    "final_error_m": 0.09638960032596146,
+    "stopped_duration_s": 3.033999999999999,
+    "core_coverage": 1.0,
+    "raw_result": "/workspace/tunnel-test/vehicle-final-installed-smoke/red_bottom-result.json",
+    "start_offset_m": -0.04
+  }
+}

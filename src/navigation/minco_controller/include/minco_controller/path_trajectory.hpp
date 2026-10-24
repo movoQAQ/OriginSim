@@ -14,6 +14,7 @@ public:
   void setPath(const std::vector<ReferencePoint> & points,
     double speed, double acceleration, double yaw_rate, bool track_yaw);
   ReferencePoint sample(double time) const;
+  Eigen::Vector2d positionAhead(double time, double distance) const;
   double nearestTime(const State & state, double minimum_time = 0.0) const;
   bool empty() const {return knots_.empty();}
   double duration() const {return knots_.empty() ? 0.0 : knots_.back().time;}

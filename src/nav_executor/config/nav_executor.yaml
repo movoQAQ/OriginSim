@@ -17,7 +17,7 @@ nav_executor:
     retry_delay: 1.0
     planning_timeout: 5.0
     path_smoother:
-      enabled: true            # 全路径联合 Minimum Jerk 平滑，失败安全回退
+      enabled: false           # Raw-path navigation; smoother disabled
       timeout: 0.3             # s，受全局规划总超时共同限制
       control_spacing: 0.4     # m，短共线控制点合并间距
       corridor_range: 1.0      # m，方形安全走廊最大范围
@@ -107,7 +107,7 @@ nav_executor:
       fixed_wz: 0.0
       deadzone_speed_threshold: 0.02
       velocity_noise_threshold: 0.03
-      collision_margin: 0.02
+      collision_margin: 0.01  # Same physical safety margin as MapServer; grid margin is separate.
 
 topology_planner:
   ros__parameters:

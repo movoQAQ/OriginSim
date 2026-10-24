@@ -175,15 +175,12 @@ void Preprocess::process_cut_frame_pcl2(
     float yaw_last[MAX_LINE_NUM] = {0.0};   // yaw of last scan point
     float time_last[MAX_LINE_NUM] = {0.0};  // last offset time
 
-    if (pl_orig.points[plsize - 1].time > 0) {
-      given_offset_time = true;
-    } else {
-      std::cout << "Compute offset time using constant rotation model." << '\n';
-      given_offset_time = false;
-      memset(is_first, true, sizeof(is_first));
-    }
+    // An explicit zero offset is valid for snapshot lidars. Only synthesize
+  // spinning-scan timestamps when the message has no time field.
+  given_offset_time = std::any_of(msg->fields.begin(), msg->fields.end(),
+    [](const auto & field) { return field.name == "time"; });
 
-    for (int i = 0; i < plsize; i++) {
+  for (int i = 0; i < plsize; i++) {
       PointType added_pt;
       added_pt.normal_x = 0;
       added_pt.normal_y = 0;

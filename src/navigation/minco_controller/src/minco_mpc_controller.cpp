@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <mutex>
+#include <limits>
 #include <stdexcept>
 
 #include "map_server/map_client.hpp"
@@ -83,6 +84,10 @@ void MincoMpcController::initialize(const rclcpp::Node::WeakPtr & parent,
     obstacle_smoothing_distance_ > 2.0)
   {throw std::invalid_argument("MPC obstacle_smoothing_distance must be in (0, 2] metres");}
   reference_speed_ = parameter("reference_speed", 0.6);
+  corridor_speed_limit_ = parameter("corridor_speed_limit", 0.25);
+  corridor_clearance_speed_gain_ = parameter("corridor_clearance_speed_gain", 2.5);
+  corridor_cross_track_gain_ = parameter("corridor_cross_track_gain", 1.0);
+  corridor_max_lateral_speed_ = parameter("corridor_max_lateral_speed", 0.06);
   reference_acceleration_ = parameter("reference_acceleration", 1.0);
   reference_yaw_rate_ = parameter("reference_yaw_rate", 1.0);
   control_delay_ = parameter("control_delay_compensation", 0.25);
@@ -99,7 +104,9 @@ void MincoMpcController::initialize(const rclcpp::Node::WeakPtr & parent,
   small_gyro_mode_ = parameter("use_small_gyro_mode", true);
   fixed_wz_ = parameter("fixed_wz", 0.0);
   collision_margin_ = parameter("collision_margin", 0.02);
-  for (const auto value : {reference_speed_, reference_acceleration_, reference_yaw_rate_}) {
+  for (const auto value : {reference_speed_, reference_acceleration_, reference_yaw_rate_,
+    corridor_speed_limit_, corridor_clearance_speed_gain_, corridor_cross_track_gain_,
+    corridor_max_lateral_speed_}) {
     if (!std::isfinite(value) || value <= 0.0) {
       throw std::invalid_argument("MPC reference motion limits must be finite and positive");
     }
@@ -285,13 +292,25 @@ geometry_msgs::msg::TwistStamped MincoMpcController::computeVelocityCommands(
   in_plan.y = -st * (observed.x - tx) + ct * (observed.y - ty);
   in_plan.yaw = observed.yaw - offset;
   progress_time_ = trajectory_.nearestTime(in_plan, progress_time_);
+  // Raw grid paths retain their geometry. Slow the reference clock near walls
+  // so the physical steering actuators have time to correct lateral errors.
+  double clearance = std::numeric_limits<double>::infinity();
+  for (int i = 0; i <= config_.horizon; ++i) {
+    const auto p = trajectory_.positionAhead(progress_time_, i * 0.1);
+    const Eigen::Vector2d world(ct * p.x() - st * p.y() + tx, st * p.x() + ct * p.y() + ty);
+    const auto cell = view->cell(world);
+    if (cell) clearance = std::min(clearance,
+      static_cast<double>(view->derived().distance_field.data[*cell]));
+  }
+  const double speed_scale = std::clamp((clearance - costmap_->settings().robot_radius) / 0.5, 0.7, 1.0);
   std::vector<ReferencePoint> reference;
   reference.reserve(config_.horizon);
   double previous_yaw = current.yaw;
   for (int k = 0; k < config_.horizon; ++k) {
-    auto point = trajectory_.sample(progress_time_ + control_delay_ + k * config_.dt);
+    auto point = trajectory_.sample(progress_time_ + speed_scale * (control_delay_ + k * config_.dt));
     const auto position = point.pos.eval();
-    const auto velocity = point.vel.eval();
+    const auto velocity = (point.vel * speed_scale).eval();
+    point.yaw_rate *= speed_scale;
     point.pos = Eigen::Vector2d(ct * position.x() - st * position.y() + tx,
       st * position.x() + ct * position.y() + ty);
     point.vel = Eigen::Vector2d(ct * velocity.x() - st * velocity.y(),
@@ -315,7 +334,82 @@ geometry_msgs::msg::TwistStamped MincoMpcController::computeVelocityCommands(
   const auto sample_cost = [&field](const Eigen::Vector2d & p, CostLinearization & cost) {
       return field.sample(p, cost);
     };
-  if (!solver_->solve(current, reference, control, &prediction, sample_cost, &observed)) {
+  const auto near = trajectory_.sample(progress_time_);
+  auto ahead = near; ahead.pos = trajectory_.positionAhead(progress_time_, 0.8);
+  Eigen::Vector2d tangent = ahead.pos - near.pos;
+  bool straight = tangent.norm() > 0.05;
+  const double straight_tolerance = std::clamp(0.1 * (clearance - radius), 0.001, 0.01);
+  for (int i = 1; straight && i < 16; ++i) {
+    const Eigen::Vector2d delta = trajectory_.positionAhead(progress_time_, i * 0.05) - near.pos;
+    straight = std::abs(tangent.x() * delta.y() - tangent.y() * delta.x()) /
+      tangent.norm() < straight_tolerance;
+  }
+  bool corridor_control = false;
+  if (clearance < 0.65 && straight && small_gyro_mode_ &&
+      std::abs(fixed_wz_) < 1e-6 && !config_.use_acc_constraints) {
+    // In a straight narrow corridor, regulate signed cross-track error
+    // directly. Holonomic QP velocity changes otherwise outpace swerve steering.
+    tangent.normalize();
+    tangent = Eigen::Vector2d(ct * tangent.x() - st * tangent.y(),
+      st * tangent.x() + ct * tangent.y()).eval();
+    const Eigen::Vector2d normal(-tangent.y(), tangent.x());
+    const Eigen::Vector2d anchor(ct * near.pos.x() - st * near.pos.y() + tx,
+      st * near.pos.x() + ct * near.pos.y() + ty);
+    const double error = normal.dot(Eigen::Vector2d(observed.x, observed.y) - anchor);
+    const double distance = (ahead.pos - near.pos).norm();
+    // Tight clearance needs time for steering and LiDAR corrections, especially
+    // when ramps make measured lateral velocity noisier than the pose itself.
+    const double free_margin = std::max(0.0, clearance - radius);
+    const double speed_limit = std::min({reference_speed_, corridor_speed_limit_,
+      std::max(0.10, corridor_clearance_speed_gain_ * free_margin)});
+    const double speed = std::min(speed_limit,
+      std::sqrt(2.0 * reference_acceleration_ * distance));
+    const double cross_tolerance = std::clamp(0.5 * free_margin, 0.01, 0.05);
+    const double along = speed * std::clamp(
+      cross_tolerance / std::max(cross_tolerance, std::abs(error)), 0.2, 1.0);
+    const auto velocity = (along * tangent - std::clamp(corridor_cross_track_gain_ * error,
+      -corridor_max_lateral_speed_, corridor_max_lateral_speed_) * normal).eval();
+    control.vx = velocity.x(); control.vy = velocity.y(); control.omega = fixed_wz_;
+    for (int k = 1; k <= config_.horizon; ++k) {
+      auto next = current; next.x += k * config_.dt * control.vx;
+      next.y += k * config_.dt * control.vy; prediction.push_back(next);
+    }
+    // A small grid bend or pose correction can invalidate the straight
+    // command. Try a checked local preview before requesting a full replan.
+    try {
+      checkPrediction(prediction, "straight_corridor_candidate", *view);
+      corridor_control = true;
+    } catch (const std::runtime_error &) {
+      prediction.clear();
+    }
+  }
+  if (!corridor_control && clearance < 0.65 && small_gyro_mode_ &&
+      std::abs(fixed_wz_) < 1e-6 && !config_.use_acc_constraints) {
+    // Follow raw corners by spatial preview. Reduce preview until its swept
+    // command is collision-free; never replace a rejected sweep with blind motion.
+    bool safe_preview = false;
+    for (double lookahead : {0.4, 0.2, 0.1, 0.05}) {
+      const auto target = trajectory_.positionAhead(progress_time_, lookahead);
+      const Eigen::Vector2d world(ct * target.x() - st * target.y() + tx,
+        st * target.x() + ct * target.y() + ty);
+      Eigen::Vector2d delta = world - Eigen::Vector2d(observed.x, observed.y);
+      const double length = delta.norm();
+      if (length < 1e-6) continue;
+      const auto velocity = (delta * (std::min(0.15, 1.5 * length) / length)).eval();
+      std::vector<State> candidate;
+      for (int k = 1; k <= config_.horizon; ++k) {
+        auto next = current; next.x += k * config_.dt * velocity.x();
+        next.y += k * config_.dt * velocity.y(); candidate.push_back(next);
+      }
+      try {checkPrediction(candidate, "spatial_corner", *view);}
+      catch (const std::runtime_error &) {continue;}
+      control.vx = velocity.x(); control.vy = velocity.y(); control.omega = fixed_wz_;
+      prediction = std::move(candidate); safe_preview = true; break;
+    }
+    if (!safe_preview) throw std::runtime_error("No collision-free raw corner preview");
+    corridor_control = true;
+  }
+  if (!corridor_control && !solver_->solve(current, reference, control, &prediction, sample_cost, &observed)) {
     throw std::runtime_error("MPC qpOASES solve failed, status=" + std::to_string(solver_->lastStatus()));
   }
   // Upstream output phase compensation anticipates physical chassis rotation;

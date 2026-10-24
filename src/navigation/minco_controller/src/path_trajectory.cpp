@@ -127,6 +127,26 @@ ReferencePoint PathTrajectory::sample(double time) const
   return result;
 }
 
+Eigen::Vector2d PathTrajectory::positionAhead(double time, double distance) const
+{
+  if (empty() || !std::isfinite(time) || !std::isfinite(distance) || distance < 0.0)
+    throw std::invalid_argument("Invalid spatial lookahead");
+  if (time >= duration() || knots_.size() == 1) return knots_.back().position;
+  time = std::max(0.0, time);
+  auto next = std::upper_bound(knots_.begin(), knots_.end(), time,
+    [](double value, const Knot & knot) {return value < knot.time;});
+  const auto & previous = *(next - 1);
+  const double target = previous.distance + (sample(time).pos - previous.position).norm() + distance;
+  auto end = std::lower_bound(knots_.begin(), knots_.end(), target,
+    [](const Knot & knot, double value) {return knot.distance < value;});
+  if (end == knots_.end()) return knots_.back().position;
+  if (end == knots_.begin()) return end->position;
+  const auto & begin = *(end - 1);
+  const double span = end->distance - begin.distance;
+  return begin.position + (span > 1e-9 ? (target - begin.distance) / span : 0.0) *
+    (end->position - begin.position);
+}
+
 double PathTrajectory::nearestTime(const State & state, double minimum_time) const
 {
   if (empty()) {throw std::logic_error("MPC has no reference path");}

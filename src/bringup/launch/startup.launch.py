@@ -50,9 +50,11 @@ def generate_launch_description():
         ],
     )
 
-    modify = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(
-            get_package_share_directory('modify_map_to_odom'), 'launch', 'modify.launch.py'))
+    modify = Node(
+        package='landmark_alignment', executable='landmark_alignment.py',
+        parameters=[os.path.join(get_package_share_directory('modify_map_to_odom'),
+                                 'config', 'config.yaml'), {'use_sim_time': True}],
+        output='screen',
     )
 
     load_map_server = IncludeLaunchDescription(
@@ -69,13 +71,14 @@ def generate_launch_description():
 
     fake_baselink = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(
-            get_package_share_directory('fake_baselink'), 'launch', 'fake_baselink.launch.py'))
+            get_package_share_directory('fake_baselink'), 'launch', 'fake_baselink.launch.py')),
+        launch_arguments={'base_link_frame_id': 'chassis'}.items(),
     )
 
     return LaunchDescription([
         DeclareLaunchArgument('rviz', default_value='true'),
         DeclareLaunchArgument('map', default_value=os.path.join(bringup_dir, 'map', 'rmuc_2026.yaml')),
-        DeclareLaunchArgument('static_pcd', default_value=os.path.join(bringup_dir, 'map', 'rmuc_2026.pcd')),
+        DeclareLaunchArgument('static_pcd', default_value=''),
         DeclareLaunchArgument('region_yaml', default_value=''),
         LogInfo(msg=['Occupancy map: ', LaunchConfiguration('map')]),
         LogInfo(msg=['Static reference PCD: ', LaunchConfiguration('static_pcd')]),

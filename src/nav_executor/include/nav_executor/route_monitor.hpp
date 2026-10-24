@@ -29,6 +29,8 @@ class RouteMonitor
 {
 public:
   explicit RouteMonitor(RouteMonitorConfig config = {});
+  // Supply motion time consistent with pose/velocity (ROS time in simulation).
+  // observeBlocked uses independent receive-time evidence; do not mix its samples.
   std::optional<ReplanEvent> observe(const nav_msgs::msg::Path & path,
     PlanIdentity identity,
     const geometry_msgs::msg::PoseStamped & pose,

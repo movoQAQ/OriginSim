@@ -23,7 +23,7 @@
         preprocess:
             lidar_type: 2
             scan_line: 32
-            timestamp_unit: 2                               # the unit of time/t field in the PointCloud2 rostopic: 0-second, 1-milisecond, 2-microsecond, 3-nanosecond.
+            timestamp_unit: 0                               # the unit of time/t field in the PointCloud2 rostopic: 0-second, 1-milisecond, 2-microsecond, 3-nanosecond.
             blind: 0.3                                      # 过滤小于这个数范围内的点云
 
         mapping:
@@ -54,6 +54,7 @@
                            0.0, 0.0, 1.0 ]
 
         odometry:
+            predict_with_imu: true
             publish_odometry_without_downsample: False
 
         publish:

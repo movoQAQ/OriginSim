@@ -1,4 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
+#include <algorithm>
+#include <stdexcept>
+#include "ground_heading.hpp"
 
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
@@ -12,6 +15,7 @@
 #include <math.h>
 
 #include <tf2/utils.h>
+#include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 class FakeBaselink : public rclcpp::Node
@@ -26,6 +30,13 @@ public:
         this->declare_parameter("cmd_vel_topic_name","cmd_vel");
         this->declare_parameter("cmd_vel_after_topic_name","cmd_vel_chassis");
         this->declare_parameter("forward_distance",0.2);
+        ground_heading = this->declare_parameter("ground_heading",false);
+        heading_hold_gain = this->declare_parameter("heading_hold_gain",0.0);
+        heading_hold_max_rate = this->declare_parameter("heading_hold_max_rate",0.5);
+        align_heading_to_motion = this->declare_parameter("align_heading_to_motion",false);
+        if (!std::isfinite(heading_hold_gain) || heading_hold_gain < 0.0 ||
+            !std::isfinite(heading_hold_max_rate) || heading_hold_max_rate <= 0.0)
+            throw std::invalid_argument("heading hold parameters must be finite and positive (gain may be zero)");
 
         this->get_parameter("odom_frame_id",odom_frame_id);
         this->get_parameter("base_link_frame_id",base_link_frame_id);
@@ -83,6 +94,7 @@ public:
 
     void cmd_vel_callback(const geometry_msgs::msg::Twist::SharedPtr cmd_vel)
     {
+        if (!ready) return;
 
         geometry_msgs::msg::TransformStamped odom_to_base_link;
         try
@@ -93,15 +105,26 @@ public:
 
         geometry_msgs::msg::Twist cmd_vel_after;
 
-        double base_link_angle = tf2::getYaw(odom_to_base_link.transform.rotation);
-        double angle_diff = base_link_angle - tf2::getYaw(fake_q);
+        double base_link_angle = heading(odom_to_base_link.transform.rotation);
+        double angle_diff = base_link_angle - heading(fake_q);
+        last_ground_heading = base_link_angle;
 
-        cmd_vel_after.angular.z = cmd_vel->angular.z;
-        cmd_vel_after.linear.x = cmd_vel->linear.x * cos(angle_diff) + cmd_vel->linear.y * sin(angle_diff);
-        cmd_vel_after.linear.y = -cmd_vel->linear.x * sin(angle_diff) + cmd_vel->linear.y * cos(angle_diff);
+        const auto converted = fake_baselink::convertCommand(
+            cmd_vel->linear.x, cmd_vel->linear.y, cmd_vel->angular.z,
+            angle_diff, heading_hold_gain, heading_hold_max_rate, align_heading_to_motion);
+        cmd_vel_after.linear.x = converted.x;
+        cmd_vel_after.linear.y = converted.y;
+        cmd_vel_after.angular.z = converted.yaw_rate;
 
         cmd_vel_after_pub->publish(cmd_vel_after);
         
+    }
+
+    double heading(const geometry_msgs::msg::Quaternion & q)
+    {
+        if (!ground_heading) return tf2::getYaw(q);
+        tf2::Quaternion rotation; tf2::fromMsg(q, rotation);
+        return fake_baselink::groundHeading(rotation, last_ground_heading);
     }
 
     void pub_fake_callback()
@@ -139,6 +162,11 @@ private:
     std::string cmd_vel_after_topic_name;
     
     bool ready{false};
+    bool ground_heading{false};
+    double last_ground_heading{0};
+    double heading_hold_gain{0};
+    double heading_hold_max_rate{0.5};
+    bool align_heading_to_motion{false};
 
     float forward_distance;
 

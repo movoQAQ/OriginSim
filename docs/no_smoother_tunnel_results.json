@@ -1,0 +1,135 @@
+{
+  "current_default_passed": true,
+  "repeated_trials": {
+    "passed": true,
+    "trials": [
+      {
+        "tunnel": "lower",
+        "repeat": 1,
+        "spawn_x_offset_m": 0,
+        "passed": true,
+        "smoother_enabled": false,
+        "task_succeeded": true,
+        "crossed": true,
+        "endpoint_error_m": 0.10619952902358545,
+        "max_cross_track_inside_m": 0.008871376420085397,
+        "min_pgm_clearance_m": 0.45,
+        "execution_stops": 0,
+        "planning_failures": 0,
+        "sim_duration_s": 16.805
+      },
+      {
+        "tunnel": "lower",
+        "repeat": 2,
+        "spawn_x_offset_m": 0.04,
+        "passed": true,
+        "smoother_enabled": false,
+        "task_succeeded": true,
+        "crossed": true,
+        "endpoint_error_m": 0.1012211700568312,
+        "max_cross_track_inside_m": 0.017208157277682545,
+        "min_pgm_clearance_m": 0.45,
+        "execution_stops": 0,
+        "planning_failures": 0,
+        "sim_duration_s": 20.701999999999998
+      },
+      {
+        "tunnel": "lower",
+        "repeat": 3,
+        "spawn_x_offset_m": -0.04,
+        "passed": true,
+        "smoother_enabled": false,
+        "task_succeeded": true,
+        "crossed": true,
+        "endpoint_error_m": 0.09880180804565462,
+        "max_cross_track_inside_m": 0.022971242090426003,
+        "min_pgm_clearance_m": 0.45,
+        "execution_stops": 0,
+        "planning_failures": 0,
+        "sim_duration_s": 20.255
+      },
+      {
+        "tunnel": "upper",
+        "repeat": 1,
+        "spawn_x_offset_m": 0,
+        "passed": true,
+        "smoother_enabled": false,
+        "task_succeeded": true,
+        "crossed": true,
+        "endpoint_error_m": 0.08935369681918742,
+        "max_cross_track_inside_m": 0.008201268806441675,
+        "min_pgm_clearance_m": 0.45,
+        "execution_stops": 0,
+        "planning_failures": 0,
+        "sim_duration_s": 16.073999999999998
+      },
+      {
+        "tunnel": "upper",
+        "repeat": 2,
+        "spawn_x_offset_m": 0.04,
+        "passed": true,
+        "smoother_enabled": false,
+        "task_succeeded": true,
+        "crossed": true,
+        "endpoint_error_m": 0.10585523002112873,
+        "max_cross_track_inside_m": 0.012816893422371578,
+        "min_pgm_clearance_m": 0.45,
+        "execution_stops": 0,
+        "planning_failures": 0,
+        "sim_duration_s": 17.407
+      },
+      {
+        "tunnel": "upper",
+        "repeat": 3,
+        "spawn_x_offset_m": -0.04,
+        "passed": true,
+        "smoother_enabled": false,
+        "task_succeeded": true,
+        "crossed": true,
+        "endpoint_error_m": 0.1014320716672431,
+        "max_cross_track_inside_m": 0.022900813695827082,
+        "min_pgm_clearance_m": 0.45,
+        "execution_stops": 0,
+        "planning_failures": 0,
+        "sim_duration_s": 20.445
+      }
+    ],
+    "successes": 6,
+    "map": "rmuc_2026",
+    "robot_radius_m": 0.3,
+    "hard_clearance_m": 0.33,
+    "sensor_profile": {
+      "frequency_hz": 10,
+      "horizontal_samples": 720,
+      "vertical_samples": 32
+    },
+    "scope": "Near-entrance starts with 0 and +/-0.04 m lateral offsets in the current simulated arena. No Gazebo truth is used for localization or control. The fixed perimeter landmarks require calibrated stationary initialization."
+  },
+  "sensor_dropout": {
+    "passed": true,
+    "max_command_after_0_8s": 0.0,
+    "last_odom_after_fault_s": -0.007404713998766965,
+    "simulation_advanced_s": 1.9770000000000003,
+    "test": "Freeze real LiDAR/IMU bridge while commanding motion; independent clock remains running."
+  },
+  "installed_package_smoke": {
+    "passed": true,
+    "task_succeeded": true,
+    "endpoint_error_m": 0.10578732572695092
+  },
+  "build_packages": 21,
+  "regression_cases": {
+    "controller": 7,
+    "recovery": 13,
+    "landmark_alignment": 1,
+    "failures": 0
+  },
+  "unsupported_high_load_profile": {
+    "frequency_hz": 100,
+    "horizontal_samples": 1875,
+    "vertical_samples": 32,
+    "stable_in_this_cpu_environment": false,
+    "reason": "Localization drift and protective stops under software-rendered high sensor load. Supported Gazebo default is now 10 Hz / 720 x 32.",
+    "diagnostics": "native-highload-drift/"
+  }
+}
