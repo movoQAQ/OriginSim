@@ -1,0 +1,86 @@
+diff --git a/src/backend/CMakeLists.txt b/src/backend/CMakeLists.txt
+index c51f167..c2e677b 100644
+--- a/src/backend/CMakeLists.txt
++++ b/src/backend/CMakeLists.txt
+@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
+ if(POLICY CMP0074)
+     cmake_policy(SET CMP0074 NEW)
+ endif()
+-project(backend LANGUAGES CXX)
++project(backend LANGUAGES C CXX)
+ include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/Warnings.cmake)
+ 
+ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+@@ -14,6 +14,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ set(CMAKE_CXX_EXTENSIONS OFF)
+ 
+ find_package(ament_cmake REQUIRED)
++# Noble's PCL/VTK export links MPI::MPI_C; define it before loading
++# pcl_conversions/PCL so ROS 2 Jazzy can consume the system package.
++find_package(MPI COMPONENTS C QUIET)
+ find_package(rclcpp REQUIRED)
+ find_package(std_msgs REQUIRED)
+ find_package(std_srvs REQUIRED)
+diff --git a/src/backend/apps/node_setup.cpp b/src/backend/apps/node_setup.cpp
+index c01622a..5e7ff83 100644
+--- a/src/backend/apps/node_setup.cpp
++++ b/src/backend/apps/node_setup.cpp
+@@ -123,7 +123,7 @@ void LocalizationNode::configureServices() {
+         parameters_.services.save_map,
+         std::bind(&LocalizationNode::saveMapService, this, std::placeholders::_1,
+                   std::placeholders::_2),
+-        rmw_qos_profile_services_default, map_callback_group_);
++        rclcpp::ServicesQoS(), map_callback_group_);
+     relocalize_service_ = create_service<std_srvs::srv::Trigger>(
+         parameters_.services.relocalize, std::bind(&LocalizationNode::relocalizeService, this,
+                                                    std::placeholders::_1, std::placeholders::_2));
+diff --git a/src/backend/src/keyframe_map.cpp b/src/backend/src/keyframe_map.cpp
+index 154b981..8f1effb 100644
+--- a/src/backend/src/keyframe_map.cpp
++++ b/src/backend/src/keyframe_map.cpp
+@@ -163,11 +163,19 @@ struct KeyframeMap::SpatialIndex {
+             if (found)
+                 bound = std::min(bound, distances[found - 1]);
+         }
++#if NANOFLANN_VERSION >= 0x150
++        std::vector<nanoflann::ResultItem<std::size_t, double>> hits;
++#else
+         std::vector<std::pair<std::size_t, double>> hits;
++#endif
+         const double margin = std::isfinite(bound) ? 64 * std::numeric_limits<double>::epsilon() *
+                                                          std::max(1.0, bound)
+                                                    : 0;
++#if NANOFLANN_VERSION >= 0x150
++        tree->radiusSearch(p.data(), bound + margin, hits, nanoflann::SearchParameters());
++#else
+         tree->radiusSearch(p.data(), bound + margin, hits, nanoflann::SearchParams());
++#endif
+         std::vector<std::pair<double, std::size_t>> exact;
+         const double radius2 =
+             radius > 0 ? radius * radius : std::numeric_limits<double>::infinity();
+diff --git a/src/livox_ros_driver2/CMakeLists.txt b/src/livox_ros_driver2/CMakeLists.txt
+index 2fd4c58..c36c789 100644
+--- a/src/livox_ros_driver2/CMakeLists.txt
++++ b/src/livox_ros_driver2/CMakeLists.txt
+@@ -44,6 +44,21 @@ endif()
+   # further dependencies manually.
+   # find_package(<dependency> REQUIRED)
+   find_package(ament_cmake_auto REQUIRED)
++  option(LIVOX_MESSAGES_ONLY "Build ROS interfaces without the hardware SDK" OFF)
++  if(LIVOX_MESSAGES_ONLY)
++    find_package(std_msgs REQUIRED)
++    find_package(builtin_interfaces REQUIRED)
++    find_package(rosidl_default_generators REQUIRED)
++    rosidl_generate_interfaces(livox_interfaces2
++      "msg/CustomPoint.msg"
++      "msg/CustomMsg.msg"
++      DEPENDENCIES builtin_interfaces std_msgs
++      LIBRARY_NAME ${PROJECT_NAME}
++    )
++    ament_export_dependencies(rosidl_default_runtime)
++    ament_package()
++    return()
++  endif()
+   ament_auto_find_build_dependencies()
+   find_package(PCL REQUIRED)
+   find_package(std_msgs REQUIRED)

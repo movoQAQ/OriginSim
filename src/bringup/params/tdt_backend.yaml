@@ -1,0 +1,35 @@
+# Overrides applied to Z-Localization's installed config/backend.yaml by
+# tdt_sim.launch.py. The prior map bundle is selected by a launch argument.
+common:
+  frontend: legacy
+  odom_frame: odom
+  sensor_frame: aft_mapped
+  input_cloud_in_local_frame: false
+  odom_topic: /odom
+  sync_odom_topic: /odom
+  cloud_topic: /cloud_registered
+  body:
+    rotation: {roll_deg: 0.0, pitch_deg: 0.0, yaw_deg: 0.0}
+    offset: {x: 0.0, y: 0.0, z: 0.0}
+    frame: aft_mapped
+  scan_context:
+    lidar_height: 0.88
+registration:
+  # The simulator's collision-surface PCD and live GPU LiDAR only overlap
+  # partially at the default spawn. Geometric RMSE/coverage checks remain on.
+  min_correspondence_ratio: 0.20
+  coarse_trigger_min_correspondence_ratio: 0.18
+  max_iterations: 40
+startup_hint:
+  enabled: true
+  force_until_matched: true
+recovery:
+  # Also bounds the initial position-prior candidates and accepted correction.
+  suspect_search_radius: 2.0
+uwb:
+  enabled: false
+output:
+  legacy:
+    enabled: false
+  world_cloud:
+    enabled: false

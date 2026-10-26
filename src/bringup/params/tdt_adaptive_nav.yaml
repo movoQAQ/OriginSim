@@ -1,0 +1,186 @@
+map_server:
+  ros__parameters:
+    use_sim_time: true
+    robot_base_frame: base_link_fake
+    robot_radius: 0.3
+    safety_margin: 0.01
+    grid_margin_factor: 0.4  # 0.02 m at 0.05 m resolution; total hard clearance 0.33 m.
+    # rmuc_2026.pgm: safe-cell median clearance 0.75 m (radius 0.30 m) at 0.05 m/pixel.
+    # Robot radius is 0.30 m as specified by the operator.
+    soft_radius: 0.8
+    alpha: 0.7
+    beta: 0.15
+    tdt_unbounded_inverse_distance: false
+    update_frequency: 20.0
+    yaml_filename: ''
+    static_pcd: ''
+    region_yaml: ''
+    height_yaml: ''
+    depth_yaml: ''
+    dynamic_obstacles_enabled: false
+    cloud_topic: /cloud_registered
+    cloud_timeout: 0.5
+    tf_wait_timeout: 0.15
+    accumulate_frames: 4
+    accumulate_duration: 0.35
+    max_cloud_points: 200000
+    max_accumulated_points: 500000
+    localization_jump_m: 0.5
+    localization_jump_rad: 0.35
+    roi:
+      min_radius: 0.4
+      max_radius: 8.0
+      min_z: -0.45
+      max_z: 0.8
+    voxel_size: 0.03
+    static_voxel_size: 0.05
+    static_distance_threshold: 0.2
+    sor:
+      neighbors: 12
+      stddev_multiplier: 2.0
+    min_density_per_m2: 400.0
+    component_connection_distance: 0.55
+    min_component_area: 0.0075
+    memory:
+      hit_rate: 5.0
+      decay_rate: 0.7
+      on_threshold: 0.6
+      off_threshold: 0.25
+      obstacle_timeout: 1.0
+      nominal_dt: 0.05
+      maximum_evidence_dt: 0.2
+    radar:
+      allies_topic: /radar/allies
+      enemies_topic: /radar/enemies
+      self_id: -1
+      stale_after: 2.5
+      confidence_half_life: 2.0
+      target_max_age: 4.0
+      active_confidence_min: 0.25
+      uncertainty_rate: 0.1
+      uncertainty_max: 0.4
+      max_physical_radius: 2.0
+map_client:
+  ros__parameters:
+    global_frame: map
+    robot_base_frame: base_link_fake
+    robot_radius: 0.3
+    require_cloud: false
+    require_radar: false
+    map_timeout: 1.0
+    transform_tolerance: 2.0
+
+nav_executor:
+  ros__parameters:
+    use_sim_time: true
+    log_enbaled: false    # 是否输出终端 Task state 日志
+    tick_frequency: 20.0  # TaskManager 检查规划结果、任务状态和路径阻塞的频率
+    goal_tolerance: 0.05
+    retry_delay: 1.0
+    planning_timeout: 5.0
+    controller_frequency: 20.0
+    odom_topic: "/odom"
+    cmd_vel_topic: "/cmd_vel"
+    odom_timeout: 0.5
+    tf_timeout: 2.0
+    control_timeout: 0.2
+    xy_goal_tolerance: 0.15
+    yaw_goal_tolerance: 3.14
+    stopped_velocity_tolerance: 0.05
+    recovery:
+      enabled: true
+      stall_duration: 3.0
+      minimum_progress: 0.05
+      stopped_speed: 0.05
+      reverse_speed: 0.15
+      reverse_distance: 0.30
+      timeout: 3.0
+      cooldown: 5.0
+      max_attempts: 3
+      safety_margin: 0.01
+      hazard_band: 0.10
+      maximum_sample_gap: 0.25
+    route_monitor:
+      enabled: true
+      deviation_distance: 0.5
+      deviation_duration: 1.0
+      stall_duration: 3.0
+      minimum_command_speed: 0.1
+      minimum_progress: 0.1
+      maximum_sample_gap: 0.25
+      replan_cooldown: 2.0
+      path_blocked:
+        enabled: true
+        lookahead_distance: 5.0
+        safety_margin: 0.01
+        confirmations: 3
+        maximum_sample_gap: 1.0
+    path_smoother:
+      enabled: false           # Raw-path navigation; smoother disabled
+      timeout: 0.3             # s，受全局规划总超时共同限制
+      control_spacing: 0.4     # m，短共线控制点合并间距
+      corridor_range: 1.0      # m，方形安全走廊最大范围
+      max_speed: 2.5          # m/s，仅用于时间分配
+      max_acceleration: 2.2    # m/s^2，仅用于时间分配
+      collision_iterations: 6
+      topology_iterations: 3
+    connector_executor:
+      enabled: true
+      region_half_width: 0.8   # 矩形半宽
+      entry_extension: 1.0     # 入口前面
+      exit_extension: 0.3      # 出口后面
+      exit_hysteresis: 0.05    # 出口死区
+      exit_debounce: 0.2       # s, continuously outside before release
+      pose_timeout: 2.0        # s, stale/missing TF preserves command and retained regions
+    MPC:
+      dt: 0.05
+      horizon: 10
+      Q: [5.0, 5.0, 2.0]
+      R: [1.0, 1.0, 0.5]
+      control_delta_weight: [2.0, 2.0, 0.5]
+      q_along: 3.0
+      q_cross: 40.0
+      obstacle_weight: 30.0
+      obstacle_smoothing_distance: 0.2
+      obstacle_trust_region: 0.15
+      obstacle_iterations: 3
+      vx_min: -1.7
+      vx_max: 1.7
+      vy_min: -1.7
+      vy_max: 1.7
+      omega_min: -2.0
+      omega_max: 2.0
+      use_acc_constraints: false
+      ax_min: -1.5
+      ax_max: 1.5
+      ay_min: -1.5
+      ay_max: 1.5
+      alpha_min: -4.0
+      alpha_max: 4.0
+      max_working_set_recalculations: 200
+      eps_regularization: 1.0e-09
+      reference_speed: 0.5
+      reference_acceleration: 0.5
+      reference_yaw_rate: 1.0  # Also limits the travel-direction rate for swerve steering.
+      control_delay_compensation: 0.05
+      output_delay: 0.025
+      use_small_gyro_mode: true
+      fixed_wz: 0.0
+      deadzone_speed_threshold: 0.02
+      velocity_noise_threshold: 0.03
+      collision_margin: 0.01  # Same physical safety margin as MapServer; grid margin is separate.
+
+
+topology_planner:
+  ros__parameters:
+    use_sim_time: true
+    TopoPlanner:
+      topology_yaml: "topo.yaml"
+      use_topology: false
+      allow_nearest_region_fallback: false
+      region_boundary_tolerance: 0.03
+      region_constraint_tolerance: 0.15
+      transform_tolerance: 0.1
+      grid:
+        tolerance: 0.2
+        use_final_approach_orientation: true

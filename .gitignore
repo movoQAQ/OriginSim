@@ -29,3 +29,4 @@ rosbag*
 *.bin
 pose.txt
 *.zip
+src/bringup/map/tdt_prior/

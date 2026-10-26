@@ -1,0 +1,38 @@
+# ZLIO atomic observations from the Gazebo Mid-360, with the same prior map
+# and registration gates used by the Point-LIO simulation entry.
+common:
+  frontend: zlio
+  odom_frame: odom
+  sensor_frame: imu
+  frame_topic: /frontend/frame
+  prediction_topic: /frontend/odometry
+  session_topic: /frontend/session
+  input_cloud_in_local_frame: true
+  body:
+    rotation: {roll_deg: 0.0, pitch_deg: 0.0, yaw_deg: 0.0}
+    offset: {x: 0.0, y: 0.0, z: 0.0}
+    frame: imu
+  scan_context:
+    lidar_height: 0.88
+registration:
+  min_correspondence_ratio: 0.20
+  coarse_trigger_min_correspondence_ratio: 0.18
+  max_iterations: 40
+  measurement_translation_std_floor: 0.10
+  measurement_rotation_std_floor_deg: 1.0
+tracking:
+  correction_period: 0.2
+startup_hint:
+  enabled: true
+  force_until_matched: true
+recovery:
+  suspect_search_radius: 2.0
+  lost_search_radius: 2.0
+  global_fallback_candidates: 0
+uwb:
+  enabled: false
+output:
+  legacy:
+    enabled: false
+  world_cloud:
+    enabled: false

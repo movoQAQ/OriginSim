@@ -12,3 +12,10 @@
 `ros2 launch bringup no_smoother_tunnels.launch.py initial_x:=... initial_y:=... initial_z:=...`。
 后者使用轮速/IMU/原始雷达围墙融合定位与行进航向控制；起步标定和范围见报告。
 不要与原 Point-LIO startup 或另一个导航执行器同时启动。
+
+T-DT Z-Localization 后端的独立接入入口、构建步骤和仿真验收见
+[T-DT 定位后端接入](docs/tdt_localization_sim.md)。
+使用 Z-Localization 仓库自带 ZLIO 前端的仿真入口与验收见
+[T-DT + ZLIO 仿真](docs/tdt_zlio_sim.md)。
+Adaptive-LIO 前端与 T-DT 后端的 Gazebo 接入及真值验收见
+[T-DT + Adaptive-LIO 仿真](docs/tdt_adaptive_lio_sim.md)。

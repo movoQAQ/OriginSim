@@ -1,0 +1,250 @@
+diff --git a/src/Adaptive-LIO/src/algo/imu_odom_predictor.h b/src/Adaptive-LIO/src/algo/imu_odom_predictor.h
+index b9a0c3f..239c33e 100644
+--- a/src/Adaptive-LIO/src/algo/imu_odom_predictor.h
++++ b/src/Adaptive-LIO/src/algo/imu_odom_predictor.h
+@@ -21,14 +21,27 @@ inline bool PropagateInterval(ESKFD& filter, const IMU& left, const IMU& right,
+     const double from = filter.GetNominalState().timestamp_;
+     if (!std::isfinite(to) || right.timestamp_ <= left.timestamp_ ||
+         from < left.timestamp_-1e-9 || to > right.timestamp_+1e-9 || to <= from ||
+-        right.timestamp_-left.timestamp_>.05+1e-12 ||
++        right.timestamp_-left.timestamp_>.15+1e-12 ||
+         !left.quality_.Usable() || !right.quality_.Usable() ||
+         !left.gyro_.allFinite() || !left.acce_.allFinite() ||
+         !right.gyro_.allFinite() || !right.acce_.allFinite()) return false;
+-    const double alpha=std::clamp((to-left.timestamp_)/(right.timestamp_-left.timestamp_),0.0,1.0);
+-    IMU endpoint(to,(1-alpha)*left.gyro_+alpha*right.gyro_,(1-alpha)*left.acce_+alpha*right.acce_);
+-    endpoint.quality_=MergeImuQuality(left.quality_,right.quality_);
+-    return filter.Predict(endpoint);
++    // A bounded dropped-sample gap must not be passed as one large ESKF step.
++    // Interpolate the available endpoint measurements and integrate in <=25 ms
++    // steps, inflating process noise for the missing intermediate readings.
++    const double span=right.timestamp_-left.timestamp_;
++    const double uncertainty_scale=std::max(1.0,span/.05);
++    double current=from;
++    while (current<to-1e-12) {
++        const double next=std::min(to,current+.025);
++        const double alpha=std::clamp((next-left.timestamp_)/span,0.0,1.0);
++        IMU endpoint(next,(1-alpha)*left.gyro_+alpha*right.gyro_,(1-alpha)*left.acce_+alpha*right.acce_);
++        endpoint.quality_=MergeImuQuality(left.quality_,right.quality_);
++        endpoint.quality_.gyro_noise_scale*=uncertainty_scale;
++        endpoint.quality_.accel_noise_scale*=uncertainty_scale;
++        if (!filter.Predict(endpoint)) return false;
++        current=next;
++    }
++    return true;
+ }
+ 
+ // Single-owner core. Call only from the propagation worker (or a test thread).
+diff --git a/src/Adaptive-LIO/src/algo/imu_quality.h b/src/Adaptive-LIO/src/algo/imu_quality.h
+index 4159e34..d490037 100644
+--- a/src/Adaptive-LIO/src/algo/imu_quality.h
++++ b/src/Adaptive-LIO/src/algo/imu_quality.h
+@@ -9,11 +9,13 @@ struct ImuQualityOptions {
+     Vec3d accel_limit=Vec3d::Zero(); // m/s^2 AFTER gnorm, zero = unknown/disabled
+     double saturation_ratio=.95;
+     double hold_seconds=0.; // default fail closed; experimental finite-axis hold only when explicitly enabled
++    double max_interval_seconds=.05; // maximum raw IMU timestamp gap
+     double noise_multiplier=100.; // variance multiplier on held channels, not a new baseline Q
+     int recovery_samples=3;
+     bool Valid() const {
+         return gyro_limit.allFinite() && accel_limit.allFinite() && (gyro_limit.array()>=0).all() &&
+             (accel_limit.array()>=0).all() && std::isfinite(saturation_ratio) && saturation_ratio>0 && saturation_ratio<=1 &&
++            std::isfinite(max_interval_seconds) && max_interval_seconds>=.005 && max_interval_seconds<=.15 &&
+             std::isfinite(hold_seconds) && hold_seconds>=0 && hold_seconds<=.05 &&
+             std::isfinite(noise_multiplier) && noise_multiplier>=1 && recovery_samples>=1;
+     }
+@@ -29,7 +31,7 @@ public:
+         if(faulted_)return Decision::Fault;
+         if(!std::isfinite(sample.timestamp_)){sample.quality_.reasons|=ImuQuality::NonFinite;return Decision::Drop;}
+         const double dt=sample.timestamp_-last_stamp_;
+-        if(sample.timestamp_<last_stamp_-1. || (std::isfinite(last_stamp_) && dt>.05)) {
++        if(sample.timestamp_<last_stamp_-1. || (std::isfinite(last_stamp_) && dt>options_.max_interval_seconds+1e-12)) {
+             sample.quality_.reasons|=ImuQuality::TimeFault;return Fault();
+         }
+         if(sample.timestamp_<=last_stamp_){sample.quality_.reasons|=ImuQuality::Stale;return Decision::Drop;}
+@@ -66,6 +68,7 @@ public:
+         last_stamp_=sample.timestamp_;return Decision::Forward;
+     }
+     bool Faulted() const{return faulted_;}
++    double LastTimestamp() const{return last_stamp_;}
+ private:
+     Decision Fault(){faulted_=true;return Decision::Fault;}
+     ImuQualityOptions options_;
+diff --git a/src/Adaptive-LIO/src/apps/imu_odom_output.h b/src/Adaptive-LIO/src/apps/imu_odom_output.h
+index 165bb7c..fd780ce 100644
+--- a/src/Adaptive-LIO/src/apps/imu_odom_output.h
++++ b/src/Adaptive-LIO/src/apps/imu_odom_output.h
+@@ -5,6 +5,7 @@
+ #include <atomic>
+ #include <thread>
+ #include <mutex>
++#include <stdexcept>
+ #include <glog/logging.h>
+ #include "rclcpp/rclcpp.hpp"
+ #include "nav_msgs/msg/odometry.hpp"
+@@ -31,6 +32,11 @@ public:
+                  Eigen::AngleAxisd(rpy.y(),Vec3d::UnitY())*Eigen::AngleAxisd(rpy.x(),Vec3d::UnitX());
+     }
+     void SetBaseLinkFrame(const std::string& frame){base_=frame;}
++    void SetPredictionLimit(double seconds){
++        if(!std::isfinite(seconds) || seconds<=0 || seconds>2.0)
++            throw std::invalid_argument("IMU prediction limit must be in (0, 2] seconds");
++        prediction_limit_=seconds;
++    }
+     void SetMaxPathPoses(size_t count){max_path_=count;}
+     void Start(){worker_=std::thread([this]{
+         try {Run();}
+@@ -56,7 +62,7 @@ public:
+     }
+ private:
+     void Run(){
+-        zjloc::ImuOdomPredictor predictor;
++        zjloc::ImuOdomPredictor predictor(2.0,prediction_limit_);
+         double last_published=-std::numeric_limits<double>::infinity(),last_path=last_published;
+         auto last_log=std::chrono::steady_clock::now();
+         auto last_input=last_log;
+@@ -133,6 +139,7 @@ private:
+     std::string world_,child_,base_="base_link";
+     Vec3d t_=Vec3d::Zero();Eigen::Quaterniond q_=Eigen::Quaterniond::Identity();
+     nav_msgs::msg::Path path_;size_t max_path_=300;
++    double prediction_limit_=0.5;
+     std::mutex mutex_;std::condition_variable cv_;std::thread worker_;
+     std::deque<zjloc::IMU> imu_queue_;std::optional<zjloc::LioStateUpdate> pending_;
+     std::function<void()> fault_callback_;
+diff --git a/src/Adaptive-LIO/src/apps/main_ada.cpp b/src/Adaptive-LIO/src/apps/main_ada.cpp
+index 85219d0..c75b702 100755
+--- a/src/Adaptive-LIO/src/apps/main_ada.cpp
++++ b/src/Adaptive-LIO/src/apps/main_ada.cpp
+@@ -9,6 +9,7 @@
+ #include <memory>
+ #include <deque>
+ #include <algorithm>
++#include <iomanip>
+ 
+ // ros2 lib
+ #include "rclcpp/rclcpp.hpp"
+@@ -165,7 +166,9 @@ void imuHandler(const sensor_msgs::msg::Imu::SharedPtr msg)
+     const auto decision=imu_quality_gate.Process(*imu);
+     if(decision==zjloc::ImuQualityGate::Decision::Fault) {
+         lio->Fail();
+-        LOG_FIRST_N(ERROR,1)<<"IMU quality/time fault; stopped both chains, restart node. reason="<<imu->quality_.reasons;
++        LOG_FIRST_N(ERROR,1)<<"IMU quality/time fault; stopped both chains, restart node. reason="<<imu->quality_.reasons
++                            <<" stamp="<<std::setprecision(18)<<imu->timestamp_
++                            <<" previous="<<imu_quality_gate.LastTimestamp();
+         return;
+     }
+     if(decision==zjloc::ImuQualityGate::Decision::Drop) {
+@@ -418,6 +421,10 @@ int main(int argc, char **argv)
+         {
+             imu_odom_output->SetMaxPathPoses(common["fusion_max_path_poses"].as<size_t>());
+         }
++        if (common["fusion_prediction_limit_seconds"])
++        {
++            imu_odom_output->SetPredictionLimit(common["fusion_prediction_limit_seconds"].as<double>());
++        }
+     }
+ 
+     lio->SetFaultCallback([] { imu_odom_output->Fail(); });
+@@ -635,6 +642,7 @@ int main(int argc, char **argv)
+         vector_option("accel_limit_m_s2",imu_quality_options.accel_limit);
+         if(iq["saturation_ratio"])imu_quality_options.saturation_ratio=iq["saturation_ratio"].as<double>();
+         if(iq["hold_seconds"])imu_quality_options.hold_seconds=iq["hold_seconds"].as<double>();
++        if(iq["max_interval_seconds"])imu_quality_options.max_interval_seconds=iq["max_interval_seconds"].as<double>();
+         if(iq["noise_multiplier"])imu_quality_options.noise_multiplier=iq["noise_multiplier"].as<double>();
+         if(iq["recovery_samples"])imu_quality_options.recovery_samples=iq["recovery_samples"].as<int>();
+     }
+@@ -650,17 +658,19 @@ int main(int argc, char **argv)
+     // 创建订阅者
+     std::shared_ptr<void> subLaserCloud =
+         (convert->lidar_type_ == zjloc::CloudConvert2::LidarType::AVIA)
+-            ? std::static_pointer_cast<void>(node->create_subscription<livox_ros_driver2::msg::CustomMsg>(laser_topic, 100, livox_pcl_cbk, sensor_sub_options))
+-            : std::static_pointer_cast<void>(node->create_subscription<sensor_msgs::msg::PointCloud2>(laser_topic, 100, standard_pcl_cbk, sensor_sub_options));
++            ? std::static_pointer_cast<void>(node->create_subscription<livox_ros_driver2::msg::CustomMsg>(laser_topic, rclcpp::SensorDataQoS().keep_last(100), livox_pcl_cbk, sensor_sub_options))
++            : std::static_pointer_cast<void>(node->create_subscription<sensor_msgs::msg::PointCloud2>(laser_topic, rclcpp::SensorDataQoS().keep_last(100), standard_pcl_cbk, sensor_sub_options));
+ 
+     rclcpp::Subscription<livox_ros_driver2::msg::CustomMsg>::SharedPtr subAuxLaserCloud;
+     if (!aux_laser_topic.empty()) {
+-        subAuxLaserCloud = node->create_subscription<livox_ros_driver2::msg::CustomMsg>(aux_laser_topic, 100, aux_livox_pcl_cbk, sensor_sub_options);
++        subAuxLaserCloud = node->create_subscription<livox_ros_driver2::msg::CustomMsg>(aux_laser_topic, rclcpp::SensorDataQoS().keep_last(100), aux_livox_pcl_cbk, sensor_sub_options);
+     }
+ 
+     auto imu_callback_group = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+     rclcpp::SubscriptionOptions imu_sub_options;
+     imu_sub_options.callback_group = imu_callback_group;
++    // The simulator's IMU bridge offers reliable QoS. Preserve each 200 Hz
++    // sample: the quality gate deliberately faults on a gap over 50 ms.
+     auto sub_imu_ori = node->create_subscription<sensor_msgs::msg::Imu>(imu_topic, 500, imuHandler, imu_sub_options);
+ 
+     std::thread measurement_process([] {
+diff --git a/src/Adaptive-LIO/src/preprocess/cloud_convert/cloud_convert2.cc b/src/Adaptive-LIO/src/preprocess/cloud_convert/cloud_convert2.cc
+index e509ad4..144f934 100755
+--- a/src/Adaptive-LIO/src/preprocess/cloud_convert/cloud_convert2.cc
++++ b/src/Adaptive-LIO/src/preprocess/cloud_convert/cloud_convert2.cc
+@@ -313,6 +313,8 @@ namespace zjloc
+         pcl::PointCloud<velodyne_ros::Point> pl_orig;
+         pcl::fromROSMsg(*msg, pl_orig);
+         int plsize = pl_orig.points.size();
++        if (plsize <= 0 || sweep_cut_num <= 0)
++            return;
+ 
+         double headertime = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
+ 
+@@ -324,12 +326,18 @@ namespace zjloc
+             return (point_1.time < point_2.time);
+         };
+         sort(pl_orig.points.begin(), pl_orig.points.end(), time_list_velodyne);
+-        while (pl_orig.points[plsize - 1].time / tm_scale >= 0.1)
++        while (plsize > 0 && pl_orig.points[plsize - 1].time / tm_scale >= 0.1)
+         {
+             plsize--;
+             pl_orig.points.pop_back();
+         }
+-        timespan_ = pl_orig.points.back().time / tm_scale;
++        if (plsize == 0)
++            return;
++        // Gazebo's GPU LiDAR produces an instantaneous scan: every point has
++        // time=0. Keep all points simultaneous while giving the estimator a
++        // finite interval for its IMU synchronization machinery.
++        const bool instantaneous = pl_orig.points.back().time <= 0.0f;
++        timespan_ = instantaneous ? 1e-4 : pl_orig.points.back().time / tm_scale;
+         delta_time = timespan_ / sweep_cut_num;
+ 
+         v_timestamp.resize(sweep_cut_num);
+@@ -358,17 +366,12 @@ namespace zjloc
+             point3D point_temp;
+             point_temp.raw_point = Eigen::Vector3d(pl_orig.points[i].x, pl_orig.points[i].y, pl_orig.points[i].z);
+             point_temp.point = point_temp.raw_point;
+-            point_temp.relative_time = pl_orig.points[i].time / tm_scale; // curvature unit: s
++            point_temp.relative_time = instantaneous ? timespan_ : pl_orig.points[i].time / tm_scale; // seconds
+             point_temp.intensity = pl_orig.points[i].intensity;
+ 
+             point_temp.timestamp = headertime + point_temp.relative_time;
+ 
+-            int id = point_temp.relative_time / delta_time; //  get id
+-            if (id < 0 || id >= sweep_cut_num)
+-            {
+-                // std::cout << "ERROR, id = " << id << std::endl;
+-                id = id - 1;
+-            }
++            int id = std::clamp(static_cast<int>(point_temp.relative_time / delta_time), 0, sweep_cut_num - 1);
+ 
+             point_temp.alpha_time = point_temp.relative_time / delta_time - id;
+             point_temp.timespan = delta_time;
+diff --git a/src/Adaptive-LIO/test/test_imu_quality.cpp b/src/Adaptive-LIO/test/test_imu_quality.cpp
+index 7b04947..3cf3155 100644
+--- a/src/Adaptive-LIO/test/test_imu_quality.cpp
++++ b/src/Adaptive-LIO/test/test_imu_quality.cpp
+@@ -17,6 +17,13 @@ int main(){try {
+     s=sample(1.99);require(timing.Process(s)==Decision::Drop,"minor reorder");
+     s=sample(.5);require(timing.Process(s)==Decision::Fault,"clock reset");
+     ImuQualityGate gap(options);s=sample(1);gap.Process(s);s=sample(1.051);require(gap.Process(s)==Decision::Fault,"gap");
++    auto bounded_options=options;bounded_options.max_interval_seconds=.15;
++    ImuQualityGate bounded_gap(bounded_options);s=sample(1);require(bounded_gap.Process(s)==Decision::Forward,"bounded first");
++    s=sample(1.08);require(bounded_gap.Process(s)==Decision::Forward,"bounded gap rejected");
++    ESKFD bounded_filter;bounded_filter.SetInitialTime(1);
++    require(PropagateInterval(bounded_filter,sample(1),sample(1.08),1.08),"bounded gap propagation");
++    require(std::abs(bounded_filter.GetNominalState().timestamp_-1.08)<1e-9 &&
++            bounded_filter.ExportSnapshot().covariance.allFinite(),"bounded gap state invalid");
+     ImuQualityGate bad_stamp(options);s=sample(NAN);require(bad_stamp.Process(s)==Decision::Drop,"NaN time");
+     s=sample(1);require(bad_stamp.Process(s)==Decision::Forward,"NaN time poisoned watermark");
+     options.hold_seconds=.025;options.recovery_samples=2;

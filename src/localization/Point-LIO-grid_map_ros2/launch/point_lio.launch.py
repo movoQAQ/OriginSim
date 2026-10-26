@@ -6,6 +6,7 @@ from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -63,6 +64,11 @@ def generate_launch_description():
         description="Namespace for the node",
     )
 
+    declare_use_sim_time = DeclareLaunchArgument(
+        "use_sim_time", default_value="false",
+        description="Use /clock for IMU prediction timestamps in simulation",
+    )
+
     declare_point_lio_cfg_dir = DeclareLaunchArgument(
         "point_lio_cfg_dir",
         default_value=PathJoinSubstitution([point_lio_dir, "config", "velody16.yaml"]),
@@ -76,6 +82,7 @@ def generate_launch_description():
         parameters=[
             point_lio_cfg_dir,
             {
+                'use_sim_time': ParameterValue(LaunchConfiguration('use_sim_time'), value_type=bool),
                 # 'use_imu_as_input': False,  # Change to True to use IMU as input of Point-LIO
                 # 'prop_at_freq_of_imu': True,
                 # 'check_satu': True,
@@ -110,6 +117,7 @@ def generate_launch_description():
     ld = LaunchDescription(
         [
             declare_namespace,
+            declare_use_sim_time,
             declare_blind,
             declare_point_filter,
             # declare_downsample,
