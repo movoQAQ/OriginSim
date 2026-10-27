@@ -19,3 +19,4 @@ T-DT Z-Localization 后端的独立接入入口、构建步骤和仿真验收见
 [T-DT + ZLIO 仿真](docs/tdt_zlio_sim.md)。
 Adaptive-LIO 前端与 T-DT 后端的 Gazebo 接入及真值验收见
 [T-DT + Adaptive-LIO 仿真](docs/tdt_adaptive_lio_sim.md)。
+T-DT 三种前端的仿真定位误差统计与轨迹诊断见 [定位精度报告](docs/tdt_localization_accuracy.md)。

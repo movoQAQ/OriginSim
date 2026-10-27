@@ -1,0 +1,7 @@
+samples=4829 median_xy_m=0.145 p95_xy_m=1.920 median_yaw_rad=0.015 p95_yaw_rad=0.078 displacement_m=1.393 trust_fraction=0.420 rejections={'no_truth': 22, 'untrusted': 6673, 'stale': 0, 'no_frame': 0, 'no_tf': 342} state=status=LOST;pose_trusted=false;tf_frozen=true;tf_published=false;epoch=4;generation=9;pose_revision=155;stamp_ns=0;estimator_failure_count=0;last_estimator_failure=;reason=descriptor global recovery failed in LOST%3B front-end reset pending
+Traceback (most recent call last):
+  File "/workspace/OriginSim/tools/verify_tdt_sim.py", line 132, in <module>
+    main()
+  File "/workspace/OriginSim/tools/verify_tdt_sim.py", line 125, in main
+    raise RuntimeError('Localization exceeds simulation feasibility limits')
+RuntimeError: Localization exceeds simulation feasibility limits

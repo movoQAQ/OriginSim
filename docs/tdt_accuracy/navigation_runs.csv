@@ -1,0 +1,4 @@
+frontend,run,duration_s,trusted_samples,displacement_m,median_xy_m,p95_xy_m,median_yaw_rad,p95_yaw_rad,trust_fraction,final_state,source
+Point-LIO,short navigation,45,1935,0.736,0.007,0.041,0.005,0.006,,completed with one TF pause,docs/tdt_localization_sim.md
+Adaptive-LIO,final navigation,70,12427,0.749,0.004,0.012,0.006,0.006,0.999,NORMAL,tdt-adaptive-nav-final-verify.log
+ZLIO,final navigation,70,4829,1.393,0.145,1.920,0.015,0.078,0.420,LOST,tdt-zlio-nav-verify-final.log

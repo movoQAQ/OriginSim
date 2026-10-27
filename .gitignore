@@ -16,6 +16,7 @@ __pycache__/
 .catkin_workspace
 *.gv
 *.pdf
+!docs/tdt_accuracy/tdt_accuracy_charts.pdf
 *.pcd
 
 mat_pre.txt
