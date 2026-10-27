@@ -5,6 +5,7 @@ from pathlib import Path
 import argparse
 import math
 import re
+from datetime import datetime, timezone
 
 import matplotlib
 matplotlib.use("Agg")
@@ -176,7 +177,9 @@ def main():
     second, frame, errors = diagnostic(folder)
     first.savefig(folder / "navigation_accuracy.png", dpi=180)
     second.savefig(folder / "zlio_failure_diagnostic.png", dpi=180)
-    with PdfPages(folder / "tdt_accuracy_charts.pdf") as pdf:
+    created = datetime(2026, 10, 27, tzinfo=timezone.utc)
+    with PdfPages(folder / "tdt_accuracy_charts.pdf",
+                  metadata={"CreationDate": created, "ModDate": created}) as pdf:
         pdf.savefig(first)
         pdf.savefig(second)
     for target in ("front", "backend"):
