@@ -19,4 +19,9 @@ DESTINATION lib/${PROJECT_NAME})
 # environment
 ament_environment_hooks("${CMAKE_CURRENT_SOURCE_DIR}/env-hooks/gazebo.dsv.in")
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_pytest REQUIRED)
+  ament_add_pytest_test(regression_contacts test/test_regression_contacts.py)
+endif()
+
 ament_package()
