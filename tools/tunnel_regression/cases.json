@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "offsets_m": [0.0, 0.04, -0.04],
+  "defaults": {
+    "coverage_bin_m": 0.1,
+    "minimum_core_coverage": 0.95,
+    "end_margin_m": 0.3,
+    "end_half_width_m": 0.15,
+    "maximum_goal_error_m": 0.3,
+    "maximum_start_error_m": 0.03,
+    "stopped_speed_mps": 0.05,
+    "stopped_angular_speed_rps": 0.05,
+    "minimum_stopped_duration_s": 3.0,
+    "maximum_tilt_deg": 30.0,
+    "truth_max_sim_age_s": 0.25,
+    "truth_max_wall_age_s": 2.0,
+    "command_max_sim_age_s": 0.25,
+    "command_max_wall_age_s": 2.0,
+    "contacts_max_sim_age_s": 2.0,
+    "contacts_max_wall_age_s": 5.0,
+    "maximum_sample_gap_s": 0.25,
+    "maximum_sample_wall_gap_s": 2.0,
+    "odom_timeout_s": 0.5,
+    "maximum_truth_speed_mps": 5.0,
+    "maximum_truth_step_slack_m": 0.05
+  },
+  "geometry_provenance": {
+    "map": "src/bringup/map/rmuc_2026.pgm",
+    "map_sha256": "effa57cda55399b668fd17422e90248f405565d3883e29db6fdbd26400460e17",
+    "map_resolution_m": 0.05,
+    "map_origin": [-0.1, 0.5, 0.0],
+    "method": "Core endpoints are the boundaries of the continuous narrow, parallel-wall raster strip along each documented centerline. Blue free width is 0.85 m; red top/middle 0.75 m; red bottom 0.65 m. The center witness band is half this free width minus the existing 0.30 m robot radius. No map bytes are changed. These core intervals are rederived for this regression tool because the historical private script and its exact intervals are unavailable; they are not claimed identical to that script.",
+    "spawn_z_note": "Existing robot model pose is z=-0.6. Spawn z 0.89/1.09 settles to calibrated chassis z 0.2758/0.4758 respectively. All starts have chassis yaw=0 for the existing wheel/IMU calibration.",
+    "threshold_note": "The 30-degree tilt rejection limit and explicit freshness, sampling, start-position, and contact-evidence checks are new regression requirements. Historical observed maxima are descriptive, not these thresholds."
+  },
+  "tunnels": [
+    {
+      "name": "upper",
+      "label": "蓝色上方",
+      "start": [19.175, 14.725],
+      "goal": [19.175, 10.975],
+      "initial_z": 0.4758,
+      "spawn_z": 1.09,
+      "core_start": [19.175, 14.0],
+      "core_end": [19.175, 11.6],
+      "core_half_width_m": 0.125
+    },
+    {
+      "name": "lower",
+      "label": "蓝色下方",
+      "start": [9.725, 5.225],
+      "goal": [9.725, 1.225],
+      "initial_z": 0.2758,
+      "spawn_z": 0.89,
+      "core_start": [9.725, 4.4],
+      "core_end": [9.725, 1.85],
+      "core_half_width_m": 0.125
+    },
+    {
+      "name": "red_top",
+      "label": "红色上方",
+      "start": [11.7, 13.975],
+      "goal": [17.2, 13.975],
+      "initial_z": 0.2758,
+      "spawn_z": 0.89,
+      "core_start": [12.9, 13.975],
+      "core_end": [15.85, 13.975],
+      "core_half_width_m": 0.075
+    },
+    {
+      "name": "red_middle",
+      "label": "红色中间",
+      "start": [11.9, 2.025],
+      "goal": [17.3, 2.025],
+      "initial_z": 0.4758,
+      "spawn_z": 1.09,
+      "core_start": [13.15, 2.025],
+      "core_end": [16.0, 2.025],
+      "core_half_width_m": 0.075
+    },
+    {
+      "name": "red_bottom",
+      "label": "红色最下方",
+      "start": [11.1, 1.025],
+      "goal": [18.9, 1.025],
+      "initial_z": 0.4758,
+      "spawn_z": 1.09,
+      "core_start": [12.15, 1.025],
+      "core_end": [18.35, 1.025],
+      "core_half_width_m": 0.025
+    }
+  ]
+}

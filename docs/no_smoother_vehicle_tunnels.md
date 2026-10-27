@@ -1,5 +1,10 @@
 # 老图、原场地、无 smoother 的五处隧道验证
 
+> **历史验收记录（2026-10-24）。** 下述 15/15 及断流数据属于当时的运行，不能作为新工具已经实测通过的证据。
+> 仓库内的复测入口现为 [`tools/run_tunnel_regression.py`](../tools/run_tunnel_regression.py)，
+> 完整构建、15 次穿越、3 类独立断流和离线复核命令见 [自动化回归工具](tunnel_regression.md)。
+> 本次工具开发环境没有 ROS 2/Gazebo；实际完成的检查另见 [交付验证记录](tunnel_regression_delivery_validation.json)。
+
 本轮使用 movoQAQ/originsim 的 `nav` 与 `gazebo` 分支，保留原 PGM/PCD 和现有 Gazebo 场地。车辆物理参数与导航算法单独修改，smoother 关闭。运行入口是新增的 `bringup/no_smoother_tunnels.launch.py`，采用轮速、IMU 与原始雷达围墙约束融合；原 Point-LIO 入口仍保留，二者不要同时启动。
 
 15/15 次通过，全部实际覆盖洞内全段并停稳至少 3 秒。最大终点误差 **0.1413 m**，洞内最大横向偏差 **0.0198 m**，最大车体倾角 **5.62°**。
@@ -31,7 +36,9 @@
 - 底盘指令、实际线速度和实际角速度均小于 0.05，连续保持至少 3 秒仿真时间；验收真值还须保持新鲜。
 - 从运行节点读取确认 `path_smoother.enabled=false`，从实际加载的地图文件确认老 PGM 的 SHA256 与原始记录一致。
 
-每次的结果、日志、中断次数、定位误差、最大车体倾角和原始文件哈希见 [结构化结果](no_smoother_vehicle_results.json)。原始逐帧数据和复测脚本位于 `/workspace/tunnel-test/vehicle-physics/v24-suite/` 与 `/workspace/tunnel-test/vehicle-v24-suite.sh`。
+每次的结果、中断次数、定位误差、最大车体倾角和当时原始文件哈希见 [结构化结果](no_smoother_vehicle_results.json)。
+历史 JSON 中的 `raw_result` 和 `suite` 是原测试容器内的路径，原始逐帧文件与旧脚本未随仓库保存，不能作为其他开发者可直接执行的复测入口。
+新工具将逐帧数据、参数、资源哈希与日志一起写入指定结果目录，并在汇总中使用相对路径；历史 JSON 保持原样，不混入新增结果。
 
 ## 修改内容
 
@@ -47,26 +54,27 @@
 
 老 `rmuc_2026.pgm` SHA256 为 `effa57cda55399b668fd17422e90248f405565d3883e29db6fdbd26400460e17`。PCD SHA256 为 `4180f074d4d7916d5eaa66ef9f9a02f83223c9c053bd2582666f24dc1c58343a`。YAML 仅平移原点到 `[-0.10,0.50,0]`，分辨率、旋转、阈值不变；[配准依据](original_map_alignment.md)描述残余几何差异。
 
-场地主模型、主碰撞 STL、减速带模型及 STL、world SDF 共 5 个资源哈希均与原始记录一致，重力、接触面、场地摩擦等物理属性未修改。下降坡提案保存在仓库之外，未应用。验证记录为 `/workspace/tunnel-test/vehicle-only-validation.json`。
+场地主模型、主碰撞 STL、减速带模型及 STL、world SDF 共 5 个资源哈希均与原始记录一致，重力、接触面、场地摩擦等物理属性未修改。下降坡提案保存在仓库之外，未应用。已入库的资源校验信息见 [约束与验证记录](no_smoother_vehicle_validation.json)。
 
 验证环境是 ROS 2 Jazzy / Gazebo Harmonic、CPU 软件渲染、10 Hz 的 720×32 雷达、静态 PGM 障碍模式。高负载 100 Hz / 1875×32 档未通过稳定性验证。新的定位后端要求静止、平地、车身 X 轴与地图 X 轴一致的标定起步，以及可见的高大轴向围墙；只估计平面位置，不估计车体高度。它和本次较强的仿真角阻尼都需要针对其他场景或实车重新验证。
 
 ## 运行与复现
 
-依赖已安装在专用 `originsim-test` 容器，两个分支通过 `/workspace/tunnel-test/ws` 联合构建。依赖版本和原始分支提交分别记录在 `dependency-versions.txt`、`source-manifest.json`。源码修改尚未提交或推送。
+历史验收使用专用 `originsim-test` 容器；相关修改已由配套 PR #1、PR #2 合并。旧容器不是复测依赖。
+请先按 [自动化回归工具的构建步骤](tunnel_regression.md#准备两个分支和构建工作区) 准备两个工作树和独立构建工作区，并设置 `TUNNEL_NAV`、`TUNNEL_GAZEBO`、`TUNNEL_WS`。
 
 在两个终端分别启动仿真与导航；以下导航标定必须与车辆出生位置一致。不要同时启动旧 `startup.launch.py` 或额外的 `nav_executor`。
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-source /workspace/tunnel-test/ws/install/setup.bash
+source "$TUNNEL_WS/install/setup.bash"
 ros2 launch rmu_gazebo_simulator tunnel_sim.launch.py \
   gz_world_path:=$(ros2 pkg prefix rmu_gazebo_simulator)/share/rmu_gazebo_simulator/config/tunnel_red_bottom_spawn.yaml
 ```
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-source /workspace/tunnel-test/ws/install/setup.bash
+source "$TUNNEL_WS/install/setup.bash"
 # 例：最下方红洞中心起步
 ros2 launch bringup no_smoother_tunnels.launch.py \
   initial_x:=11.1 initial_y:=1.025 initial_z:=0.4758
@@ -80,4 +88,15 @@ ros2 launch bringup no_smoother_tunnels.launch.py \
 | 红色中间 | [11.9,2.025] | [17.3,2.025] | 0.4758 m |
 | 红色最下方 | [11.1,1.025] | [18.9,1.025] | 0.4758 m |
 
-整体复测：`bash /workspace/tunnel-test/vehicle-v24-suite.sh`。每次会重启并在结束后停止专用测试容器，日志与逐帧验收数据保存在相应 trial 目录。
+整体复测使用仓库内的入口，不依赖专用容器。每个 case 启动新的仿真和导航，结束后清理本次启动的进程：
+
+```bash
+source /opt/ros/jazzy/setup.bash
+source "$TUNNEL_WS/install/setup.bash"
+cd "$TUNNEL_NAV"
+python3 tools/run_tunnel_regression.py run \
+  --gazebo-root "$TUNNEL_GAZEBO" --mode all \
+  --output "$TUNNEL_WS/results/five-tunnels-$(date +%Y%m%d-%H%M%S)"
+```
+
+默认执行五洞各三种偏移，以及雷达、IMU、轮速分别断流的三次独立测试。新工具重新从原 PGM 确定洞内区间，并增加显式接触检查与倾角阈值；这些新标准尚未经过本环境的 Gazebo 实测，不能把历史 15/15 直接视为新套件通过。

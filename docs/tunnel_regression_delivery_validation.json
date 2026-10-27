@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-27T21:20:16.905807+08:00",
+  "timezone": "Asia/Shanghai",
+  "purpose": "Delivery verification for the new portable regression harness; not a new Gazebo acceptance report",
+  "base_commits": {
+    "nav": "38702f56af3f4a8c1ecc21c077f5f7392a2e0cb1",
+    "gazebo": "3c52828f203ae5d1d4c344f46f492366ef76e68c"
+  },
+  "environment": {
+    "python": "3.12.14",
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+    "ros2_available": false,
+    "gazebo_available": false,
+    "colcon_available": false
+  },
+  "historical_acceptance": {
+    "date": "2026-10-24",
+    "expected_trials": 15,
+    "passed_trials": 15,
+    "max_final_error_reported_m": 0.1413,
+    "max_core_cross_track_reported_m": 0.0198,
+    "max_tilt_reported_deg": 5.62,
+    "reported_execution_interruptions": 8,
+    "results_file": "no_smoother_vehicle_results.json",
+    "results_sha256": "0ca85cc53bf60bd02ec69b0d144486cab49f704ac95d859ffcc3fda707291b31",
+    "historical_file_modified": false,
+    "counted_as_new_measurements": false
+  },
+  "new_checks": {
+    "nav_python_tests": {
+      "tests": 102,
+      "passed": 102,
+      "seconds": 19.115,
+      "log": "tunnel_regression_checks/nav_unit_tests.txt",
+      "log_sha256": "71034a490a63e6683362a1258d782998cebfeb3092875661543cd6bcf61e1aaf"
+    },
+    "gazebo_instrumentation_python_tests": {
+      "tests": 5,
+      "passed": 5,
+      "seconds": 0.036,
+      "log": "tunnel_regression_checks/gazebo_unit_tests.txt",
+      "log_sha256": "b64626bccd5181780ab6ee6aa6d09fb331b018d22a2dc8df6ed4310a370aa5d6"
+    },
+    "total_python_tests_passed": 107,
+    "python_compileall": "passed",
+    "bash_syntax": "passed",
+    "git_diff_check": "passed",
+    "real_source_workspace_preparation": {
+      "passed": true,
+      "packages": 17,
+      "native_build_attempted": false
+    },
+    "plan_command": {
+      "exit_code": 0,
+      "traversal_cases": 15,
+      "independent_sensor_cases": 3,
+      "gazebo_runs": 0
+    },
+    "run_command_in_this_environment": {
+      "exit_code": 2,
+      "status": "blocked",
+      "completed_traversals": 0,
+      "completed_safety_tests": 0,
+      "report": "tunnel_regression_checks/runtime_environment_check.json"
+    },
+    "synthetic_evidence_replay": "tested: preserves synthetic backend; missing evidence and hash mismatch fail"
+  },
+  "new_physical_measurements": {
+    "gazebo_traversals": 0,
+    "gazebo_sensor_dropout_tests": 0,
+    "native_ros_build": "not_run",
+    "dds_integration": "not_run"
+  },
+  "protected_inputs": {
+    "nav/map_pgm": {
+      "sha256": "effa57cda55399b668fd17422e90248f405565d3883e29db6fdbd26400460e17",
+      "expected_sha256": "effa57cda55399b668fd17422e90248f405565d3883e29db6fdbd26400460e17",
+      "matches": true
+    },
+    "nav/map_pcd": {
+      "sha256": "4180f074d4d7916d5eaa66ef9f9a02f83223c9c053bd2582666f24dc1c58343a",
+      "expected_sha256": "4180f074d4d7916d5eaa66ef9f9a02f83223c9c053bd2582666f24dc1c58343a",
+      "matches": true
+    },
+    "gazebo/resource/worlds/rmuc_2026_world.sdf": {
+      "sha256": "9d0d6fe7555691bf3429be9ac406662182ebf581f32bf7614878039af01a4571",
+      "expected_sha256": "9d0d6fe7555691bf3429be9ac406662182ebf581f32bf7614878039af01a4571",
+      "matches": true
+    },
+    "gazebo/resource/models/rmuc_2026/model.sdf": {
+      "sha256": "026c5ec8bd9fee5fec3f08195381a9368fb01015ddd1dcb1f08a6ad73d3fa087",
+      "expected_sha256": "026c5ec8bd9fee5fec3f08195381a9368fb01015ddd1dcb1f08a6ad73d3fa087",
+      "matches": true
+    },
+    "gazebo/resource/models/rmuc_2026/meshes/rmuc_2026.stl": {
+      "sha256": "08758108cc78bf64ecc822533a2074ec120287e0eea7bad64188633d92d36daa",
+      "expected_sha256": "08758108cc78bf64ecc822533a2074ec120287e0eea7bad64188633d92d36daa",
+      "matches": true
+    },
+    "gazebo/resource/models/speed_bump/model.sdf": {
+      "sha256": "4c4b503b4ae649e6f1b2d16be7c1c8c9014448a94f4544c4e711b881419d93a1",
+      "expected_sha256": "4c4b503b4ae649e6f1b2d16be7c1c8c9014448a94f4544c4e711b881419d93a1",
+      "matches": true
+    },
+    "gazebo/resource/models/speed_bump/meshes/speed_bump.stl": {
+      "sha256": "96eb1caeefe2b62753a70f78acde253580886a663450fd8425ccb0e52342dedf",
+      "expected_sha256": "96eb1caeefe2b62753a70f78acde253580886a663450fd8425ccb0e52342dedf",
+      "matches": true
+    },
+    "nav/src/bringup/params/no_smoother_tunnels.yaml": {
+      "sha256": "074301a59133f7eb2ff181e8dd344cc215e394391b7285da3184e4a569908e78",
+      "expected_sha256": "074301a59133f7eb2ff181e8dd344cc215e394391b7285da3184e4a569908e78",
+      "matches": true
+    },
+    "nav/src/bringup/launch/no_smoother_tunnels.launch.py": {
+      "sha256": "99aa846e810f0d66449f1449a00c7566f89a2453b4a447994f85e64664f08c1b",
+      "expected_sha256": "99aa846e810f0d66449f1449a00c7566f89a2453b4a447994f85e64664f08c1b",
+      "matches": true
+    },
+    "nav/src/bringup/map/rmuc_2026.yaml": {
+      "sha256": "db76c75abe3f367059e54eba44393c99e0a617b4ba618f9fda0c704dbc464673",
+      "expected_sha256": "db76c75abe3f367059e54eba44393c99e0a617b4ba618f9fda0c704dbc464673",
+      "matches": true
+    },
+    "gazebo/src/rmu_gazebo_simulator/config/tunnel_vehicle_physics.json": {
+      "sha256": "09d79b9a04f2b1c857d06494ddfa3c79f3f5455072a232811043aa3b95ae3822",
+      "expected_sha256": "09d79b9a04f2b1c857d06494ddfa3c79f3f5455072a232811043aa3b95ae3822",
+      "matches": true
+    },
+    "gazebo/src/pb2025_robot_description/resource/xmacro/pb2025_sentry_robot.sdf.xmacro": {
+      "sha256": "f79c0fcb9fb6509345c75bd2df376904c6a910bcc4d13fa031b4c6708c4711ab",
+      "expected_sha256": "f79c0fcb9fb6509345c75bd2df376904c6a910bcc4d13fa031b4c6708c4711ab",
+      "matches": true
+    }
+  },
+  "commands": [
+    "python3 -m unittest discover -s tools/tunnel_regression/tests -v",
+    "python3 -m unittest discover -s src/rmu_gazebo_simulator/test -p test_regression_contacts.py -v (gazebo checkout)",
+    "python3 -m compileall -q tools/run_tunnel_regression.py tools/tunnel_regression",
+    "python3 -m py_compile src/rmu_gazebo_simulator/launch/regression_contacts.py src/rmu_gazebo_simulator/launch/tunnel_sim.launch.py src/rmu_gazebo_simulator/launch/spawn_robots.launch.py (gazebo checkout)",
+    "bash -n tools/build_tunnel_regression.sh",
+    "git diff --check (both checkouts)",
+    "bash tools/build_tunnel_regression.sh --gazebo-root ../OriginSim-gazebo --workspace ../OriginSim-tunnel-ws --prepare-only",
+    "python3 tools/run_tunnel_regression.py plan --gazebo-root ../OriginSim-gazebo --output ../tunnel-regression-plan",
+    "python3 tools/run_tunnel_regression.py run --gazebo-root ../OriginSim-gazebo --output ../tunnel-regression-runtime-check --mode all"
+  ],
+  "limitations": [
+    "No actual ROS 2, DDS, Gazebo, colcon build, vehicle traversal or independent physical sensor-dropout test ran in this environment.",
+    "The old private harness and raw trajectories are unavailable. Core intervals are rederived from unchanged PGM, not asserted identical to the old test.",
+    "Contact classification, 30 degree tilt limit, explicit freshness and independent dropout deadlines are new test criteria; historic 15/15 does not establish they pass.",
+    "Tire contacts on a step with predominantly horizontal normal are rejected by the explicit strict contact policy, even if the robot can traverse physically.",
+    "Observation systems and relays may add load; the first Gazebo run must assess their runtime behavior.",
+    "Source/install matching covers configuration, launch, model XML, maps and Python. C++ source and binary fingerprints alone do not prove a clean rebuild.",
+    "Coverage remains fixed single directions, calibrated prescribed starts, offsets 0 and +/-0.04 m and 10 Hz 720x32 LiDAR."
+  ]
+}

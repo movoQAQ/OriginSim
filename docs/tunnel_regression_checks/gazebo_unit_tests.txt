@@ -1,0 +1,10 @@
+test_double_instrumentation_fails_without_mutation (test_regression_contacts.ContactInstrumentationTest.test_double_instrumentation_fails_without_mutation) ... ok
+test_empty_geometry_fails_without_mutation (test_regression_contacts.ContactInstrumentationTest.test_empty_geometry_fails_without_mutation) ... ok
+test_malformed_collision_and_topic_fail_without_mutation (test_regression_contacts.ContactInstrumentationTest.test_malformed_collision_and_topic_fail_without_mutation) ... ok
+test_removing_observation_restores_every_original_element (test_regression_contacts.ContactInstrumentationTest.test_removing_observation_restores_every_original_element) ... ok
+test_world_copy_changes_only_contact_system (test_regression_contacts.ContactInstrumentationTest.test_world_copy_changes_only_contact_system) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.036s
+
+OK
