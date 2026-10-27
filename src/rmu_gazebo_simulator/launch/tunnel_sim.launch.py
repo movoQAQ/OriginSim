@@ -19,17 +19,22 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('gz_world_path', default_value=os.path.join(
             simulator, 'config', 'gz_world.yaml')),
+        DeclareLaunchArgument('world_sdf_path', default_value=os.path.join(
+            simulator, 'resource', 'worlds', 'rmuc_2026_world.sdf'),
+            description='World SDF; regression uses an observation-only runtime copy'),
         DeclareLaunchArgument('vehicle_physics_profile', default_value=os.path.join(
             simulator, 'config', 'tunnel_vehicle_physics.json')),
+        DeclareLaunchArgument('regression_contacts', default_value='false', choices=['true', 'false'],
+                              description='Enable test-only robot contact observation'),
         SetEnvironmentVariable('LIBGL_ALWAYS_SOFTWARE', '1'),
         SetEnvironmentVariable('LP_NUM_THREADS', '2'),
         SetEnvironmentVariable('XDG_RUNTIME_DIR', runtime),
         AppendEnvironmentVariable('GZ_SIM_RESOURCE_PATH', os.path.join(simulator, 'resource', 'models')),
         IncludeLaunchDescription(PythonLaunchDescriptionSource(os.path.join(
             share('ros_gz_sim'), 'launch', 'gz_sim.launch.py')),
-            launch_arguments={'gz_args': os.path.join(simulator, 'resource', 'worlds',
-                                                    'rmuc_2026_world.sdf') +
-                              ' -s -r --headless-rendering', 'gz_version': '8'}.items()),
+            launch_arguments={'gz_args': [LaunchConfiguration('world_sdf_path'),
+                                         ' -s -r --headless-rendering'],
+                              'gz_version': '8'}.items()),
         Node(package='ros_gz_bridge', executable='parameter_bridge',
              arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock']),
         IncludeLaunchDescription(PythonLaunchDescriptionSource(os.path.join(
@@ -37,6 +42,7 @@ def generate_launch_description():
             launch_arguments={
                 'gz_world_path': LaunchConfiguration('gz_world_path'),
                 'vehicle_physics_profile': LaunchConfiguration('vehicle_physics_profile'),
+                'regression_contacts': LaunchConfiguration('regression_contacts'),
             }.items()),
         Node(package='ign_sim_pointcloud_tool', executable='ign_sim_pointcloud_tool_node',
              parameters=[{'pcd_topic': 'livox/lidar/pointcloud', 'n_scan': 32,

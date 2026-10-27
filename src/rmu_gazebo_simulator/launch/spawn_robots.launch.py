@@ -67,6 +67,17 @@ def spawn_robots(context):
             helper.apply_profile(robot_doc, profile)
             robot_xml = ET.tostring(robot_doc, encoding="unicode")
 
+        # Test-only observation. The default path and all vehicle properties stay
+        # unchanged; sensors are added to the generated XML, never source assets.
+        if LaunchConfiguration("regression_contacts").perform(context).lower() == "true":
+            spec = importlib.util.spec_from_file_location(
+                "regression_contacts", os.path.join(pkg_simulator, "launch", "regression_contacts.py"))
+            helper = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(helper)
+            robot_doc = ET.fromstring(robot_xml)
+            helper.instrument_robot(robot_doc)
+            robot_xml = ET.tostring(robot_doc, encoding="unicode")
+
         # Generate URDF from SDF
         urdf_generator = UrdfGenerator()
         urdf_generator.parse_from_sdf_string(robot_xml)
@@ -161,5 +172,7 @@ def generate_launch_description():
         DeclareLaunchArgument("gz_world_path", default_value=os.path.join(simulator, "config", "gz_world.yaml")),
         DeclareLaunchArgument("vehicle_physics_profile", default_value="",
                               description="Optional JSON for robot inertials, friction, wheelbase and passive drag"),
+        DeclareLaunchArgument("regression_contacts", default_value="false", choices=["true", "false"],
+                              description="Test-only contact sensors; does not change collision geometry or physics"),
         OpaqueFunction(function=spawn_robots),
     ])
